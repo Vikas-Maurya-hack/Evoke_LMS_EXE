@@ -6,23 +6,21 @@ import { SoftCard, SoftCardHeader, SoftCardTitle, SoftCardContent } from "@/comp
 
 interface Student {
   id: string;
+  _id?: string;
   name: string;
   email: string;
   avatar?: string;
   course: string;
   status: "Active" | "Pending" | "Inactive";
-  date: string;
-  feeOffered: number;
-  downPayment: number;
+  date?: string;
+  joinedDate?: string;
+  feeOffered?: number;
+  downPayment?: number;
+  progress?: number;
 }
 
-const students: Student[] = [
-  { id: "STU001", name: "Emma Thompson", email: "emma@example.com", course: "ACCA", status: "Active", date: "2024-01-15", feeOffered: 5000, downPayment: 1500 },
-  { id: "STU002", name: "Michael Chen", email: "michael@example.com", course: "CPA", status: "Active", date: "2024-01-14", feeOffered: 4500, downPayment: 1000 },
-  { id: "STU003", name: "Sarah Johnson", email: "sarah@example.com", course: "ACCA", status: "Pending", date: "2024-01-13", feeOffered: 5500, downPayment: 2000 },
-  { id: "STU004", name: "David Williams", email: "david@example.com", course: "CFA", status: "Active", date: "2024-01-12", feeOffered: 6000, downPayment: 1800 },
-  { id: "STU005", name: "Lisa Anderson", email: "lisa@example.com", course: "ACCA", status: "Active", date: "2024-01-11", feeOffered: 5000, downPayment: 1200 },
-];
+const students: Student[] = [];
+// Data is now fetched from the database via /api/students
 
 const statusColors = {
   Active: "bg-success/10 text-success hover:bg-success/20 border-success/20",
@@ -146,7 +144,10 @@ export function StudentActivityTable({ onStudentClick }: StudentActivityTablePro
                     </td>
                     <td className="py-3 px-4 text-muted-foreground text-xs whitespace-nowrap">
                       {(() => {
-                        const date = new Date(student.date);
+                        const dateStr = student.joinedDate || student.date;
+                        if (!dateStr) return "N/A";
+                        const date = new Date(dateStr);
+                        if (isNaN(date.getTime())) return dateStr;
                         const month = date.toLocaleDateString("en-US", { month: "short" });
                         const day = date.getDate();
                         const year = date.getFullYear().toString().slice(-2);

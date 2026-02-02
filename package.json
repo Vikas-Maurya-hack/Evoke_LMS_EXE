@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "server": "nodemon server/index.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -46,11 +47,15 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "cors": "^2.8.6",
     "date-fns": "^3.6.0",
+    "dotenv": "^17.2.3",
     "embla-carousel-react": "^8.6.0",
+    "express": "^5.2.1",
     "framer-motion": "^12.29.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.462.0",
+    "mongoose": "^9.1.5",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -81,6 +86,7 @@
     "globals": "^15.15.0",
     "jsdom": "^20.0.3",
     "lovable-tagger": "^1.1.13",
+    "nodemon": "^3.1.11",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",

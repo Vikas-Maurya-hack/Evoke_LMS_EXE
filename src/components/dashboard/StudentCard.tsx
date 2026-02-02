@@ -1,6 +1,6 @@
 import { motion, Variants } from "framer-motion";
 import {
-  Mail,
+  Hash,
   Phone,
   GraduationCap,
   Calendar,
@@ -64,7 +64,11 @@ const shimmerVariants: Variants = {
 };
 
 export function StudentCard({ student, index, onClick }: StudentCardProps) {
-  const paidPercentage = ((student.downPayment / student.feeOffered) * 100).toFixed(0);
+  // Safe defaults for fields that might be undefined
+  const feeOffered = student.feeOffered ?? 50000;
+  const downPayment = student.downPayment ?? 10000;
+  const studentDate = student.date || student.joinedDate || new Date().toISOString();
+  const paidPercentage = feeOffered > 0 ? ((downPayment / feeOffered) * 100).toFixed(0) : "0";
 
   return (
     <motion.div
@@ -135,8 +139,8 @@ export function StudentCard({ student, index, onClick }: StudentCardProps) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.08 + 0.15 }}
           >
-            <Mail className="w-3.5 h-3.5" />
-            {student.email}
+            <Hash className="w-3.5 h-3.5" />
+            {student.id || student._id}
           </motion.p>
         </div>
 
@@ -155,7 +159,7 @@ export function StudentCard({ student, index, onClick }: StudentCardProps) {
             transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
           >
             <Calendar className="w-3.5 h-3.5" />
-            {new Date(student.date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+            {new Date(studentDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
           </motion.div>
         </div>
 

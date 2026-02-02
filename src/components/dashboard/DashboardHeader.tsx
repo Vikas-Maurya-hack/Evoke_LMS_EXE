@@ -230,6 +230,7 @@ export function DashboardHeader() {
           className="relative p-3 rounded-lg bg-card border border-border/30"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
+          onClick={() => navigate("/notifications")}
         >
           <Bell className="w-5 h-5 text-muted-foreground" />
           <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-destructive rounded-full" />

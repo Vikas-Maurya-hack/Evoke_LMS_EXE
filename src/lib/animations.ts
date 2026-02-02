@@ -21,10 +21,10 @@ export const bouncySpring = {
 
 // Easing functions
 export const easing = {
-    smooth: [0.43, 0.13, 0.23, 0.96],
-    easeOut: [0.16, 1, 0.3, 1],
-    easeIn: [0.7, 0, 0.84, 0],
-    easeInOut: [0.87, 0, 0.13, 1],
+    smooth: [0.43, 0.13, 0.23, 0.96] as const,
+    easeOut: [0.16, 1, 0.3, 1] as const,
+    easeIn: [0.7, 0, 0.84, 0] as const,
+    easeInOut: [0.87, 0, 0.13, 1] as const,
 };
 
 // Common animation variants

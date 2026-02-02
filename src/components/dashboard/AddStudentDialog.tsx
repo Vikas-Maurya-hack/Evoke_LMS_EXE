@@ -16,7 +16,7 @@ import { Student } from "@/components/dashboard/StudentActivityTable";
 interface AddStudentDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onAddStudent: (student: Omit<Student, "id">) => void;
+    onAddStudent: (student: Omit<Student, "id">) => void | Promise<void>;
 }
 
 const courses = ["ACCA", "CPA", "CFA", "CMA", "CA"];

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings as SettingsIcon, Moon, Sun, Bell, User, Lock, Palette } from "lucide-react";
+import { Settings as SettingsIcon, Moon, Sun, Bell, User, Lock, Palette, Database, Server, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,53 @@ const Settings = () => {
     });
     const [notifications, setNotifications] = useState(true);
     const [emailUpdates, setEmailUpdates] = useState(true);
+
+    // Database connection status
+    interface SystemStatus {
+        database: {
+            status: string;
+            connected: boolean;
+            host: string | null;
+            name: string | null;
+            timestamp: string;
+        };
+        server: {
+            status: string;
+            port: number;
+            uptime: number;
+        };
+    }
+
+    const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+    const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+
+    const checkDatabaseStatus = async () => {
+        setIsCheckingStatus(true);
+        try {
+            const response = await fetch('http://localhost:5000/api/status');
+            if (response.ok) {
+                const data = await response.json();
+                setSystemStatus(data);
+            } else {
+                setSystemStatus({
+                    database: { status: 'error', connected: false, host: null, name: null, timestamp: new Date().toISOString() },
+                    server: { status: 'unreachable', port: 5000, uptime: 0 }
+                });
+            }
+        } catch (error) {
+            setSystemStatus({
+                database: { status: 'error', connected: false, host: null, name: null, timestamp: new Date().toISOString() },
+                server: { status: 'offline', port: 5000, uptime: 0 }
+            });
+        } finally {
+            setIsCheckingStatus(false);
+        }
+    };
+
+    // Check database status on mount
+    useEffect(() => {
+        checkDatabaseStatus();
+    }, []);
 
     // Apply dark mode whenever it changes
     useEffect(() => {
@@ -61,7 +108,7 @@ const Settings = () => {
 
                     <motion.div variants={fadeInUp}>
                         <Tabs defaultValue="appearance" className="w-full">
-                            <TabsList className="grid w-full grid-cols-4 mb-6">
+                            <TabsList className="grid w-full grid-cols-5 mb-6">
                                 <TabsTrigger value="appearance" className="gap-2">
                                     <Palette className="w-4 h-4" />
                                     Appearance
@@ -77,6 +124,10 @@ const Settings = () => {
                                 <TabsTrigger value="security" className="gap-2">
                                     <Lock className="w-4 h-4" />
                                     Security
+                                </TabsTrigger>
+                                <TabsTrigger value="system" className="gap-2">
+                                    <Database className="w-4 h-4" />
+                                    System
                                 </TabsTrigger>
                             </TabsList>
 
@@ -210,6 +261,120 @@ const Settings = () => {
                                         </div>
 
                                         <Button className="mt-4">Update Password</Button>
+                                    </motion.div>
+                                </TabsContent>
+
+                                <TabsContent value="system" className="space-y-6">
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        className="bg-card rounded-2xl p-6 border border-border/30 space-y-6"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-lg font-semibold">System Status</h3>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={checkDatabaseStatus}
+                                                disabled={isCheckingStatus}
+                                                className="gap-2"
+                                            >
+                                                <RefreshCw className={`w-4 h-4 ${isCheckingStatus ? 'animate-spin' : ''}`} />
+                                                Refresh
+                                            </Button>
+                                        </div>
+
+                                        {/* Database Status */}
+                                        <div className="p-5 rounded-xl bg-accent/30 border border-border/30">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-3 rounded-xl ${systemStatus?.database.connected ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                                                    <Database className={`w-6 h-6 ${systemStatus?.database.connected ? 'text-success' : 'text-destructive'}`} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-3">
+                                                        <h4 className="font-semibold text-foreground">MongoDB Database</h4>
+                                                        <div className="flex items-center gap-2">
+                                                            {systemStatus?.database.connected ? (
+                                                                <>
+                                                                    <motion.div
+                                                                        className="w-3 h-3 rounded-full bg-success"
+                                                                        animate={{ scale: [1, 1.2, 1] }}
+                                                                        transition={{ duration: 2, repeat: Infinity }}
+                                                                    />
+                                                                    <span className="text-sm font-medium text-success">Connected</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="w-3 h-3 rounded-full bg-destructive" />
+                                                                    <span className="text-sm font-medium text-destructive">Disconnected</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {systemStatus?.database.connected && (
+                                                        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                                                            <p>Host: <span className="text-foreground font-mono">{systemStatus.database.host}</span></p>
+                                                            <p>Database: <span className="text-foreground font-mono">{systemStatus.database.name}</span></p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {systemStatus?.database.connected ? (
+                                                    <CheckCircle2 className="w-6 h-6 text-success" />
+                                                ) : (
+                                                    <XCircle className="w-6 h-6 text-destructive" />
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Server Status */}
+                                        <div className="p-5 rounded-xl bg-accent/30 border border-border/30">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-3 rounded-xl ${systemStatus?.server.status === 'running' ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                                                    <Server className={`w-6 h-6 ${systemStatus?.server.status === 'running' ? 'text-success' : 'text-destructive'}`} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-3">
+                                                        <h4 className="font-semibold text-foreground">Backend Server</h4>
+                                                        <div className="flex items-center gap-2">
+                                                            {systemStatus?.server.status === 'running' ? (
+                                                                <>
+                                                                    <motion.div
+                                                                        className="w-3 h-3 rounded-full bg-success"
+                                                                        animate={{ scale: [1, 1.2, 1] }}
+                                                                        transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                                                                    />
+                                                                    <span className="text-sm font-medium text-success">Running</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <div className="w-3 h-3 rounded-full bg-destructive" />
+                                                                    <span className="text-sm font-medium text-destructive">Offline</span>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    {systemStatus?.server.status === 'running' && (
+                                                        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                                                            <p>Port: <span className="text-foreground font-mono">{systemStatus.server.port}</span></p>
+                                                            <p>Uptime: <span className="text-foreground font-mono">{Math.floor(systemStatus.server.uptime / 60)} minutes</span></p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {systemStatus?.server.status === 'running' ? (
+                                                    <CheckCircle2 className="w-6 h-6 text-success" />
+                                                ) : (
+                                                    <XCircle className="w-6 h-6 text-destructive" />
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Last Checked */}
+                                        {systemStatus && (
+                                            <p className="text-sm text-muted-foreground text-center">
+                                                Last checked: {new Date(systemStatus.database.timestamp).toLocaleTimeString()}
+                                            </p>
+                                        )}
                                     </motion.div>
                                 </TabsContent>
                             </AnimatePresence>

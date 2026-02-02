@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
   X,
@@ -13,7 +14,9 @@ import {
   Clock,
   Award,
   TrendingUp,
-  CreditCard
+  CreditCard,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -21,10 +24,21 @@ import { Button } from "@/components/ui/button";
 import { EMIProgressBar } from "./EMIProgressBar";
 import type { Student } from "./StudentActivityTable";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface StudentFullProfileProps {
   student: Student | null;
   onClose: () => void;
+  onDelete?: (studentId: string) => void;
 }
 
 const statusColors = {
@@ -90,15 +104,39 @@ const floatAnimation = {
   }
 };
 
-export function StudentFullProfile({ student, onClose }: StudentFullProfileProps) {
+export function StudentFullProfile({ student, onClose, onDelete }: StudentFullProfileProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   if (!student) return null;
 
-  // Calculate payment details
-  const totalPaid = student.downPayment + Math.floor((student.feeOffered - student.downPayment) * 0.3);
-  const pendingAmount = student.feeOffered - totalPaid;
+  // Use defaults for financial fields if not present
+  const feeOffered = student.feeOffered ?? 50000;
+  const downPayment = student.downPayment ?? 10000;
+  const studentDate = student.date || student.joinedDate || new Date().toISOString();
+
+  // Calculate payment details with safe defaults
+  const totalPaid = downPayment + Math.floor((feeOffered - downPayment) * 0.3);
+  const pendingAmount = feeOffered - totalPaid;
   const monthsEnrolled = Math.floor(Math.random() * 12) + 1;
   const coursesCompleted = Math.floor(Math.random() * 5) + 1;
   const averageScore = Math.floor(Math.random() * 20) + 80;
+
+  const handleDelete = async () => {
+    const studentId = student._id || student.id;
+    if (!studentId || !onDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await onDelete(studentId);
+      setShowDeleteConfirm(false);
+      onClose();
+    } catch (error) {
+      console.error("Failed to delete student:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <AnimatePresence mode="wait">
@@ -195,7 +233,7 @@ export function StudentFullProfile({ student, onClose }: StudentFullProfileProps
                     { icon: Hash, text: student.id },
                     { icon: Mail, text: student.email },
                     { icon: GraduationCap, text: student.course },
-                    { icon: Calendar, text: `Enrolled: ${new Date(student.date).toLocaleDateString()}` },
+                    { icon: Calendar, text: `Enrolled: ${new Date(studentDate).toLocaleDateString()}` },
                   ].map((item, i) => (
                     <motion.div
                       key={i}
@@ -260,8 +298,8 @@ export function StudentFullProfile({ student, onClose }: StudentFullProfileProps
               {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 {[
-                  { label: "Fee Offered", value: student.feeOffered, icon: Banknote, color: "text-foreground", bg: "bg-card" },
-                  { label: "Down Payment", value: student.downPayment, icon: ArrowDownCircle, color: "text-success", bg: "bg-success/5" },
+                  { label: "Fee Offered", value: feeOffered, icon: Banknote, color: "text-foreground", bg: "bg-card" },
+                  { label: "Down Payment", value: downPayment, icon: ArrowDownCircle, color: "text-success", bg: "bg-success/5" },
                   { label: "Pending Amount", value: pendingAmount, icon: Banknote, color: "text-warning", bg: "bg-warning/5" },
                 ].map((item, i) => (
                   <motion.div
@@ -302,8 +340,8 @@ export function StudentFullProfile({ student, onClose }: StudentFullProfileProps
 
               {/* EMI Progress Bar */}
               <EMIProgressBar
-                feeOffered={student.feeOffered}
-                downPayment={student.downPayment}
+                feeOffered={feeOffered}
+                downPayment={downPayment}
                 totalPaid={totalPaid}
               />
             </motion.div>
@@ -311,27 +349,73 @@ export function StudentFullProfile({ student, onClose }: StudentFullProfileProps
             {/* Actions */}
             <motion.div
               variants={itemVariants}
-              className="flex flex-wrap justify-end gap-3"
+              className="flex flex-wrap justify-between gap-3"
             >
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="outline" onClick={onClose} className="rounded-xl px-6">
-                  Close
-                </Button>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="outline" className="rounded-xl px-6">
-                  Send Message
-                </Button>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button className="rounded-xl px-6 bg-primary hover:bg-primary/90">
-                  Edit Profile
-                </Button>
-              </motion.div>
+              {/* Delete Button */}
+              {onDelete && (
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="rounded-xl px-4 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </motion.div>
+              )}
+
+              <div className="flex flex-wrap gap-3 ml-auto">
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button variant="outline" onClick={onClose} className="rounded-xl px-6">
+                    Close
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button variant="outline" className="rounded-xl px-6">
+                    Send Message
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button className="rounded-xl px-6 bg-primary hover:bg-primary/90">
+                    Edit Profile
+                  </Button>
+                </motion.div>
+              </div>
             </motion.div>
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-3 rounded-full bg-destructive/10">
+                <AlertTriangle className="w-6 h-6 text-destructive" />
+              </div>
+              <AlertDialogTitle className="text-xl">Delete Student Permanently?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-base">
+              Are you sure you want to delete <strong>{student.name}</strong>? This action cannot be undone
+              and will permanently remove all data associated with this student from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 mt-4">
+            <AlertDialogCancel className="rounded-xl" disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              {isDeleting ? "Deleting..." : "Yes, Delete Permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AnimatePresence>
   );
 }

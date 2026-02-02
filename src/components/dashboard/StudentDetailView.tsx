@@ -74,9 +74,14 @@ const staggerItemVariants: Variants = {
 export function StudentDetailView({ student, onClose }: StudentDetailViewProps) {
   if (!student) return null;
 
-  // Calculate payment details
-  const totalPaid = student.downPayment + Math.floor((student.feeOffered - student.downPayment) * 0.3);
-  const pendingAmount = student.feeOffered - totalPaid;
+  // Use defaults for financial fields if not present
+  const feeOffered = student.feeOffered ?? 50000;
+  const downPayment = student.downPayment ?? 10000;
+  const studentDate = student.date || student.joinedDate || new Date().toISOString();
+
+  // Calculate payment details with safe defaults
+  const totalPaid = downPayment + Math.floor((feeOffered - downPayment) * 0.3);
+  const pendingAmount = feeOffered - totalPaid;
 
   return (
     <AnimatePresence>
@@ -154,7 +159,7 @@ export function StudentDetailView({ student, onClose }: StudentDetailViewProps) 
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Calendar className="w-4 h-4" />
-                    <span>Enrolled: {new Date(student.date).toLocaleDateString()}</span>
+                    <span>Enrolled: {new Date(studentDate).toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>
@@ -186,7 +191,7 @@ export function StudentDetailView({ student, onClose }: StudentDetailViewProps) 
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring" as const, stiffness: 400, damping: 20, delay: 0.3 }}
                   >
-                    ₹{student.feeOffered.toLocaleString('en-IN')}
+                    ₹{feeOffered.toLocaleString('en-IN')}
                   </motion.p>
                 </motion.div>
 
@@ -207,7 +212,7 @@ export function StudentDetailView({ student, onClose }: StudentDetailViewProps) 
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring" as const, stiffness: 400, damping: 20, delay: 0.4 }}
                   >
-                    ₹{student.downPayment.toLocaleString('en-IN')}
+                    ₹{downPayment.toLocaleString('en-IN')}
                   </motion.p>
                 </motion.div>
 
@@ -235,8 +240,8 @@ export function StudentDetailView({ student, onClose }: StudentDetailViewProps) 
 
               {/* EMI Progress Bar */}
               <EMIProgressBar
-                feeOffered={student.feeOffered}
-                downPayment={student.downPayment}
+                feeOffered={feeOffered}
+                downPayment={downPayment}
                 totalPaid={totalPaid}
               />
             </motion.div>
