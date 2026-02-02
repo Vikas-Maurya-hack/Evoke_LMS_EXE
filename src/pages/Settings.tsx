@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings as SettingsIcon, Moon, Sun, Bell, User, Lock, Palette, Database, Server, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
+import { Settings as SettingsIcon, Moon, Sun, Bell, Database, Server, CheckCircle2, XCircle, RefreshCw, Palette } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { fadeInUp, staggerContainer } from "@/lib/animations";
 
@@ -108,7 +107,7 @@ const Settings = () => {
 
                     <motion.div variants={fadeInUp}>
                         <Tabs defaultValue="appearance" className="w-full">
-                            <TabsList className="grid w-full grid-cols-5 mb-6">
+                            <TabsList className="grid w-full grid-cols-3 mb-6">
                                 <TabsTrigger value="appearance" className="gap-2">
                                     <Palette className="w-4 h-4" />
                                     Appearance
@@ -116,14 +115,6 @@ const Settings = () => {
                                 <TabsTrigger value="notifications" className="gap-2">
                                     <Bell className="w-4 h-4" />
                                     Notifications
-                                </TabsTrigger>
-                                <TabsTrigger value="account" className="gap-2">
-                                    <User className="w-4 h-4" />
-                                    Account
-                                </TabsTrigger>
-                                <TabsTrigger value="security" className="gap-2">
-                                    <Lock className="w-4 h-4" />
-                                    Security
                                 </TabsTrigger>
                                 <TabsTrigger value="system" className="gap-2">
                                     <Database className="w-4 h-4" />
@@ -205,62 +196,6 @@ const Settings = () => {
                                                 onCheckedChange={setEmailUpdates}
                                             />
                                         </div>
-                                    </motion.div>
-                                </TabsContent>
-
-                                <TabsContent value="account" className="space-y-6">
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -20 }}
-                                        className="bg-card rounded-2xl p-6 border border-border/30 space-y-4"
-                                    >
-                                        <h3 className="text-lg font-semibold mb-4">Account Information</h3>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="name">Full Name</Label>
-                                            <Input id="name" defaultValue="John Admin" />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="email">Email Address</Label>
-                                            <Input id="email" type="email" defaultValue="admin@edupro.com" />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="role">Role</Label>
-                                            <Input id="role" defaultValue="Super Admin" disabled />
-                                        </div>
-
-                                        <Button className="mt-4">Save Changes</Button>
-                                    </motion.div>
-                                </TabsContent>
-
-                                <TabsContent value="security" className="space-y-6">
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -20 }}
-                                        className="bg-card rounded-2xl p-6 border border-border/30 space-y-4"
-                                    >
-                                        <h3 className="text-lg font-semibold mb-4">Change Password</h3>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="current-password">Current Password</Label>
-                                            <Input id="current-password" type="password" />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="new-password">New Password</Label>
-                                            <Input id="new-password" type="password" />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="confirm-password">Confirm New Password</Label>
-                                            <Input id="confirm-password" type="password" />
-                                        </div>
-
-                                        <Button className="mt-4">Update Password</Button>
                                     </motion.div>
                                 </TabsContent>
 

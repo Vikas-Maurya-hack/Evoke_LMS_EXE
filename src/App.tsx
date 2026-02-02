@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SearchProvider } from "@/contexts/SearchContext";
+import { AuthProvider } from "@/context/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Watermark } from "@/components/Watermark";
 import { useEffect } from "react";
 import Index from "./pages/Index";
@@ -14,6 +16,7 @@ import Analytics from "./pages/Analytics";
 import Payments from "./pages/Payments";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
 
 const queryClient = new QueryClient();
 
@@ -36,17 +39,21 @@ const App = () => {
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/students" element={<Students />} />
-              <Route path="/courses" element={<Courses />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/payments" element={<Payments />} />
-              <Route path="/notifications" element={<Notifications />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AuthProvider>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+
+                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                <Route path="/students" element={<ProtectedRoute><Students /></ProtectedRoute>} />
+                <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+                <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AuthProvider>
           </BrowserRouter>
         </SearchProvider>
       </TooltipProvider>
