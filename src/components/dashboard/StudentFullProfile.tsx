@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
   X,
@@ -8,15 +8,14 @@ import {
   Mail,
   Hash,
   Calendar,
-  Phone,
-  MapPin,
-  BookOpen,
   Clock,
+  BookOpen,
   Award,
-  TrendingUp,
   CreditCard,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  TrendingUp,
+  UserPen
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +33,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 interface StudentFullProfileProps {
   student: Student | null;
@@ -108,19 +125,46 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Edit State
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    course: "",
+    status: "Active",
+    feeOffered: 0,
+    downPayment: 0
+  });
+
+  // Initialize edit form when student changes
+  useEffect(() => {
+    if (student) {
+      setEditForm({
+        name: student.name,
+        email: student.email,
+        course: student.course,
+        status: student.status,
+        feeOffered: student.feeOffered || 50000,
+        downPayment: student.downPayment || 10000
+      });
+    }
+  }, [student]);
+
   if (!student) return null;
 
-  // Use defaults for financial fields if not present
+  // Use defaults for financial fields if not present (logic for display view)
   const feeOffered = student.feeOffered ?? 50000;
   const downPayment = student.downPayment ?? 10000;
   const studentDate = student.date || student.joinedDate || new Date().toISOString();
 
-  // Calculate payment details with safe defaults
   const totalPaid = downPayment + Math.floor((feeOffered - downPayment) * 0.3);
   const pendingAmount = feeOffered - totalPaid;
-  const monthsEnrolled = Math.floor(Math.random() * 12) + 1;
-  const coursesCompleted = Math.floor(Math.random() * 5) + 1;
-  const averageScore = Math.floor(Math.random() * 20) + 80;
+
+  // Use static values instead of random generation to prevent data changing
+  const monthsEnrolled = 0;
+  const coursesCompleted = 0;
+  const averageScore = 0;
 
   const handleDelete = async () => {
     const studentId = student._id || student.id;
@@ -135,6 +179,40 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
       console.error("Failed to delete student:", error);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+
+    try {
+      const studentId = student._id || student.id;
+      // Depending on backend, use _id or custom id. The PUT route supports both.
+
+      const response = await fetch(`http://localhost:5000/api/students/${studentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm)
+      });
+
+      if (response.ok) {
+        toast.success("Profile updated successfully", {
+          description: "Changes will be reflected after refresh."
+        });
+        setIsEditing(false);
+        // We could also call onClose() to refresh list if parent fetches on close
+        onClose();
+      } else {
+        const errorData = await response.json();
+        toast.error("Failed to update profile", { description: errorData.message });
+      }
+    } catch (error) {
+      toast.error("Error updating profile");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -371,13 +449,13 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
                     Close
                   </Button>
                 </motion.div>
+                {/* Send Message Button Removed */}
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button variant="outline" className="rounded-xl px-6">
-                    Send Message
-                  </Button>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button className="rounded-xl px-6 bg-primary hover:bg-primary/90">
+                  <Button
+                    className="rounded-xl px-6 bg-primary hover:bg-primary/90"
+                    onClick={() => setIsEditing(true)}
+                  >
+                    <UserPen className="w-4 h-4 mr-2" />
                     Edit Profile
                   </Button>
                 </motion.div>
@@ -386,6 +464,96 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={isEditing} onOpenChange={setIsEditing}>
+        <DialogContent className="max-w-2xl rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Student Profile</DialogTitle>
+            <DialogDescription>
+              Update the student's personal and financial information.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdate} className="space-y-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <Input
+                  id="name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="course">Course</Label>
+                <Input
+                  id="course"
+                  value={editForm.course}
+                  onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={editForm.status}
+                  onValueChange={(value) => setEditForm({ ...editForm, status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="fee">Fee Offered (₹)</Label>
+                <Input
+                  id="fee"
+                  type="number"
+                  value={editForm.feeOffered}
+                  onChange={(e) => setEditForm({ ...editForm, feeOffered: Number(e.target.value) })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="downPayment">Down Payment (₹)</Label>
+                <Input
+                  id="downPayment"
+                  type="number"
+                  value={editForm.downPayment}
+                  onChange={(e) => setEditForm({ ...editForm, downPayment: Number(e.target.value) })}
+                  required
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

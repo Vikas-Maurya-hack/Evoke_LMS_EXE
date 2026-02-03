@@ -12,7 +12,29 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'secure_secret_key_123';
+
+// SECURITY: All sensitive credentials MUST be in environment variables
+const JWT_SECRET = process.env.JWT_SECRET;
+const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+// Validate required environment variables on startup
+const validateEnvVariables = () => {
+    const required = ['MONGO_URI', 'JWT_SECRET', 'SUPER_ADMIN_PASSWORD', 'ADMIN_PASSWORD'];
+    const missing = required.filter(key => !process.env[key]);
+
+    if (missing.length > 0) {
+        console.error('❌ FATAL ERROR: Missing required environment variables:');
+        missing.forEach(key => console.error(`   - ${key}`));
+        console.error('\nPlease add these to your .env file:');
+        console.error('MONGO_URI=your_mongodb_connection_string');
+        console.error('JWT_SECRET=your_secure_random_secret_key');
+        console.error('SUPER_ADMIN_PASSWORD=your_super_admin_password');
+        console.error('ADMIN_PASSWORD=your_admin_password');
+        process.exit(1);
+    }
+    console.log('✅ All required environment variables validated.');
+};
 
 // Middleware
 app.use(cors());
@@ -20,49 +42,49 @@ app.use(express.json());
 
 // --- AUTHENTICATION & USERS ---
 
-// generate token
+// Generate JWT Token
 const generateToken = (id) => {
     return jwt.sign({ id }, JWT_SECRET, { expiresIn: '30d' });
 };
 
-// Seed Users script
+// Seed Users - Credentials from Environment Variables ONLY
 const seedUsers = async () => {
     try {
         // Check for Safdar (Super Admin)
         const superAdmin = await User.findOne({ username: 'Safdar' });
         if (!superAdmin) {
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash('Safdar2026', salt);
+            const salt = await bcrypt.genSalt(12); // Industry standard: 12 rounds
+            const hashedPassword = await bcrypt.hash(SUPER_ADMIN_PASSWORD, salt);
             await User.create({
                 username: 'Safdar',
                 password: hashedPassword,
                 role: 'super_admin',
                 name: 'Safdar'
             });
-            console.log('Super Admin (Safdar) created.');
+            console.log('✅ Super Admin (Safdar) created with secure password from environment.');
         }
 
         // Check for Admin
         const admin = await User.findOne({ username: 'Admin' });
         if (!admin) {
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash('Admin2026', salt);
+            const salt = await bcrypt.genSalt(12);
+            const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, salt);
             await User.create({
                 username: 'Admin',
                 password: hashedPassword,
                 role: 'admin',
                 name: 'Admin'
             });
-            console.log('Admin user created.');
+            console.log('✅ Admin user created with secure password from environment.');
         }
 
-        console.log('User seeding check complete.');
+        console.log('✅ User seeding check complete.');
     } catch (error) {
-        console.error('Error seeding users:', error);
+        console.error('❌ Error seeding users:', error);
     }
 };
 
-// Auth Middleware
+// Auth Middleware - Protected Routes
 const protect = async (req, res, next) => {
     let token;
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -70,8 +92,12 @@ const protect = async (req, res, next) => {
             token = req.headers.authorization.split(' ')[1];
             const decoded = jwt.verify(token, JWT_SECRET);
             req.user = await User.findById(decoded.id).select('-password');
+            if (!req.user) {
+                return res.status(401).json({ message: 'User not found' });
+            }
             next();
         } catch (error) {
+            console.error('Token verification failed:', error.message);
             res.status(401).json({ message: 'Not authorized, token failed' });
         }
     } else {
@@ -87,6 +113,11 @@ app.get('/', (req, res) => {
 // POST: Login
 app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password are required' });
+    }
+
     try {
         const user = await User.findOne({ username });
         if (user && (await bcrypt.compare(password, user.password))) {
@@ -101,18 +132,28 @@ app.post('/api/auth/login', async (req, res) => {
             res.status(401).json({ message: 'Invalid username or password' });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Login error:', error);
+        res.status(500).json({ message: 'Server error during login' });
     }
 });
 
 // PUT: Change Own Password
 app.put('/api/auth/change-password', protect, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters' });
+    }
+
     try {
         const user = await User.findById(req.user._id);
 
         if (user && (await bcrypt.compare(currentPassword, user.password))) {
-            const salt = await bcrypt.genSalt(10);
+            const salt = await bcrypt.genSalt(12);
             user.password = await bcrypt.hash(newPassword, salt);
             await user.save();
             res.json({ message: 'Password updated successfully' });
@@ -120,17 +161,26 @@ app.put('/api/auth/change-password', protect, async (req, res) => {
             res.status(400).json({ message: 'Invalid current password' });
         }
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Password change error:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
-// PUT: Admin Reset Password (Only Safdar can do this)
+// PUT: Admin Reset Password (Only Super Admin can do this)
 app.put('/api/auth/admin-reset-password', protect, async (req, res) => {
     const { targetUsername, newPassword } = req.body;
 
-    // Check if requester is Safdar
-    if (req.user.username !== 'Safdar') {
+    // Check if requester is Super Admin
+    if (req.user.role !== 'super_admin') {
         return res.status(403).json({ message: 'Not authorized. Only Super Admin can perform this action.' });
+    }
+
+    if (!targetUsername || !newPassword) {
+        return res.status(400).json({ message: 'Target username and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+        return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
 
     try {
@@ -139,13 +189,14 @@ app.put('/api/auth/admin-reset-password', protect, async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        const salt = await bcrypt.genSalt(10);
+        const salt = await bcrypt.genSalt(12);
         userToUpdate.password = await bcrypt.hash(newPassword, salt);
         await userToUpdate.save();
 
         res.json({ message: `Password for ${targetUsername} has been reset.` });
     } catch (error) {
-        res.status(500).json({ message: error.message });
+        console.error('Admin reset error:', error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
@@ -262,6 +313,30 @@ app.post('/api/students', async (req, res) => {
     }
 });
 
+// PUT: Update a student by ID
+app.put('/api/students/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        // Try to find by MongoDB _id first, then by custom id field
+        let updatedStudent = await Student.findByIdAndUpdate(id, updates, { new: true });
+
+        if (!updatedStudent) {
+            updatedStudent = await Student.findOneAndUpdate({ id: id }, updates, { new: true });
+        }
+
+        if (!updatedStudent) {
+            return res.status(404).json({ message: 'Student not found' });
+        }
+
+        res.status(200).json(updatedStudent);
+    } catch (error) {
+        console.error('Error updating student:', error);
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // DELETE: Remove a student by ID
 app.delete('/api/students/:id', async (req, res) => {
     try {
@@ -290,25 +365,22 @@ app.delete('/api/students/:id', async (req, res) => {
 // Database Connection
 const connectDB = async () => {
     try {
-        if (!process.env.MONGO_URI) {
-            console.error("Error: MONGO_URI is missing in .env file");
-            return;
-        }
         const conn = await mongoose.connect(process.env.MONGO_URI);
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
+        console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 
         // Seed users after connection
         await seedUsers();
 
     } catch (error) {
-        console.error(`Error: ${error.message}`);
+        console.error(`❌ Database Connection Error: ${error.message}`);
         process.exit(1);
     }
 };
 
 // Start Server
+validateEnvVariables();
 connectDB().then(() => {
     app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+        console.log(`🚀 Server running on port ${PORT}`);
     });
 });
