@@ -11,7 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "server": "nodemon server/index.js"
+    "server": "nodemon --watch server server/index.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

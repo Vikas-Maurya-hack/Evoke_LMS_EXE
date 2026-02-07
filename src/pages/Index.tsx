@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence, Variants } from "framer-motion";
-import { Users, BookOpen, DollarSign, TrendingUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Users, BookOpen, DollarSign, TrendingUp, RefreshCw } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -9,68 +9,138 @@ import { StudentActivityTable, Student } from "@/components/dashboard/StudentAct
 import { TransactionsList } from "@/components/dashboard/TransactionsList";
 import { StudentFullProfile } from "@/components/dashboard/StudentFullProfile";
 
-const statsData = [
-  {
-    title: "Total Students",
-    value: "2,847",
-    subtitle: "Active learners",
-    icon: Users,
-    trend: { value: 12.5, isPositive: true },
-    variant: "default" as const,
-  },
-  {
-    title: "Active Courses",
-    value: "156",
-    subtitle: "Across all programs",
-    icon: BookOpen,
-    trend: { value: 8.2, isPositive: true },
-    variant: "default" as const,
-  },
-  {
-    title: "Revenue This Month",
-    value: "₹10,84,500",
-    subtitle: "From enrollments",
-    icon: DollarSign,
-    trend: { value: 23.1, isPositive: true },
-    variant: "primary" as const,
-  },
-  {
-    title: "Growth Rate",
-    value: "18.3%",
-    subtitle: "Year over year",
-    icon: TrendingUp,
-    trend: { value: 5.4, isPositive: true },
-    variant: "success" as const,
-  },
-];
 
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.15,
-    },
-  },
-};
-
-const sectionVariants: Variants = {
-  hidden: { opacity: 0, y: 40 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      type: "spring" as const,
-      stiffness: 260,
-      damping: 25
-    }
-  },
-};
+interface DashboardStats {
+  totalStudents: number;
+  activeStudents: number;
+  totalRevenue: number;
+  pendingRevenue: number;
+  transactionsCount: number;
+  coursesCount: number;
+}
 
 const Index = () => {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalStudents: 0,
+    activeStudents: 0,
+    totalRevenue: 0,
+    pendingRevenue: 0,
+    transactionsCount: 0,
+    coursesCount: 0
+  });
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
   const navigate = useNavigate();
+
+  // Fetch dashboard stats from database
+  const fetchStats = useCallback(async () => {
+    try {
+      // Fetch students
+      const studentsRes = await fetch('http://localhost:5000/api/students');
+      const students = studentsRes.ok ? await studentsRes.json() : [];
+
+      // Fetch transactions - API returns { transactions: [...], ... }
+      const transactionsRes = await fetch('http://localhost:5000/api/transactions?limit=1000');
+      const transactionsResult = transactionsRes.ok ? await transactionsRes.json() : { transactions: [] };
+      const transactions = Array.isArray(transactionsResult) ? transactionsResult : (transactionsResult.transactions || []);
+
+      // Calculate stats
+      const totalStudents = students.length;
+      const activeStudents = students.filter((s: Student) => s.status === 'Active').length;
+
+      // Calculate total revenue from completed transactions
+      const totalRevenue = transactions
+        .filter((t: any) => t.status === 'Completed' && t.type === 'Credit')
+        .reduce((sum: number, t: any) => sum + t.amount, 0);
+
+      // Calculate pending revenue (total fees - paid fees)
+      const pendingRevenue = students.reduce((sum: number, s: Student) => {
+        const fee = s.feeOffered || 0;
+        const paid = s.feesPaid || 0;
+        return sum + Math.max(0, fee - paid);
+      }, 0);
+
+      // Get unique courses count
+      const uniqueCourses = new Set(students.map((s: Student) => s.course)).size;
+
+      setStats({
+        totalStudents,
+        activeStudents,
+        totalRevenue,
+        pendingRevenue,
+        transactionsCount: transactions.length,
+        coursesCount: uniqueCourses
+      });
+    } catch (error) {
+      console.error("Failed to fetch stats:", error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats, refreshTrigger]);
+
+  // Handle student update - triggers refresh of all components
+  const handleStudentUpdate = useCallback((updatedStudent: Student) => {
+    // Update selected student if it's the same one
+    setSelectedStudent(prev =>
+      prev && (prev._id === updatedStudent._id || prev.id === updatedStudent.id)
+        ? updatedStudent
+        : prev
+    );
+
+    // Trigger refresh of student table, transactions list, and stats
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
+
+  // Format currency for display
+  const formatCurrency = (amount: number) => {
+    if (amount >= 10000000) {
+      return `₹${(amount / 10000000).toFixed(1)}Cr`;
+    } else if (amount >= 100000) {
+      return `₹${(amount / 100000).toFixed(1)}L`;
+    } else {
+      return `₹${amount.toLocaleString('en-IN')}`;
+    }
+  };
+
+  const statsData = [
+    {
+      title: "Total Students",
+      value: isLoadingStats ? "..." : stats.totalStudents.toString(),
+      subtitle: `${stats.activeStudents} active`,
+      icon: Users,
+      trend: { value: stats.activeStudents > 0 ? Math.round((stats.activeStudents / Math.max(1, stats.totalStudents)) * 100) : 0, isPositive: true },
+      variant: "default" as const,
+    },
+    {
+      title: "Active Courses",
+      value: isLoadingStats ? "..." : stats.coursesCount.toString(),
+      subtitle: "Unique courses",
+      icon: BookOpen,
+      trend: { value: 0, isPositive: true },
+      variant: "default" as const,
+    },
+    {
+      title: "Total Revenue",
+      value: isLoadingStats ? "..." : formatCurrency(stats.totalRevenue),
+      subtitle: "From fee payments",
+      icon: DollarSign,
+      trend: { value: stats.transactionsCount, isPositive: true },
+      variant: "primary" as const,
+    },
+    {
+      title: "Pending Fees",
+      value: isLoadingStats ? "..." : formatCurrency(stats.pendingRevenue),
+      subtitle: "Yet to collect",
+      icon: TrendingUp,
+      trend: { value: 0, isPositive: false },
+      variant: "success" as const,
+    },
+  ];
 
   return (
     <div className="h-screen bg-background flex overflow-hidden">
@@ -83,43 +153,35 @@ const Index = () => {
           <DashboardHeader />
         </div>
 
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="flex-1 flex flex-col gap-4 px-4 lg:px-8 pb-4 overflow-hidden"
-        >
+        <div className="flex-1 flex flex-col gap-4 px-4 lg:px-8 pb-4 overflow-y-auto scrollbar-hide">
           {/* Stats Grid */}
-          <motion.div
-            variants={sectionVariants}
-            className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
-          >
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {statsData.map((stat, index) => (
               <StatsCard
                 key={stat.title}
                 {...stat}
                 index={index}
                 onClick={() => {
-                  if (stat.title === "Revenue This Month") navigate("/analytics#revenue-chart");
-                  if (stat.title === "Growth Rate") navigate("/analytics#student-growth-chart");
+                  if (stat.title === "Total Revenue") navigate("/payments");
+                  if (stat.title === "Total Students") navigate("/students");
                 }}
               />
             ))}
-          </motion.div>
+          </div>
 
           {/* Main Content Grid - with flex-1 to fill remaining space */}
-          <motion.div
-            variants={sectionVariants}
-            className="grid grid-cols-1 xl:grid-cols-5 gap-4 flex-1 overflow-hidden"
-          >
-            <div className="xl:col-span-3">
-              <StudentActivityTable onStudentClick={setSelectedStudent} />
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 flex-1 overflow-hidden">
+            <div className="overflow-hidden xl:col-span-2 min-h-0 h-full">
+              <StudentActivityTable
+                onStudentClick={setSelectedStudent}
+                refreshTrigger={refreshTrigger}
+              />
             </div>
-            <div className="xl:col-span-2">
-              <TransactionsList />
+            <div className="overflow-hidden flex flex-col gap-4 min-h-0 h-full">
+              <TransactionsList refreshTrigger={refreshTrigger} />
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
       </main>
 
       {/* Student Detail Modal */}
@@ -128,6 +190,7 @@ const Index = () => {
           <StudentFullProfile
             student={selectedStudent}
             onClose={() => setSelectedStudent(null)}
+            onStudentUpdate={handleStudentUpdate}
           />
         )}
       </AnimatePresence>

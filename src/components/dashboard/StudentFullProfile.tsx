@@ -15,7 +15,10 @@ import {
   Trash2,
   AlertTriangle,
   TrendingUp,
-  UserPen
+  UserPen,
+  History,
+  RefreshCw,
+  ChevronDown
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { EMIProgressBar } from "./EMIProgressBar";
 import type { Student } from "./StudentActivityTable";
 import { cn } from "@/lib/utils";
+import { PaymentModal } from "@/components/students/PaymentModal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,6 +60,7 @@ interface StudentFullProfileProps {
   student: Student | null;
   onClose: () => void;
   onDelete?: (studentId: string) => void;
+  onStudentUpdate?: (updatedStudent: Student) => void; // NEW: Callback to sync updates
 }
 
 const statusColors = {
@@ -121,9 +126,27 @@ const floatAnimation = {
   }
 };
 
-export function StudentFullProfile({ student, onClose, onDelete }: StudentFullProfileProps) {
+interface Transaction {
+  _id: string;
+  studentName: string;
+  amount: number;
+  date: string;
+  type: 'Credit' | 'Debit' | 'Refund';
+  status: string;
+}
+
+export function StudentFullProfile({ student: initialStudent, onClose, onDelete, onStudentUpdate }: StudentFullProfileProps) {
+  // Use local state for student to allow real-time updates
+  const [student, setStudent] = useState<Student | null>(initialStudent);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  // @ts-ignore - emiMonths is a custom field on student
+  const [emiMonths, setEmiMonths] = useState(student?.emiMonths || 12);
+  const [isEMIExpanded, setIsEMIExpanded] = useState(false);
+
+  // Payment history for this student
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
 
   // Edit State
   const [isEditing, setIsEditing] = useState(false);
@@ -133,9 +156,13 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
     email: "",
     course: "",
     status: "Active",
-    feeOffered: 0,
-    downPayment: 0
+    feeOffered: 0
   });
+
+  // Sync local student state when prop changes
+  useEffect(() => {
+    setStudent(initialStudent);
+  }, [initialStudent]);
 
   // Initialize edit form when student changes
   useEffect(() => {
@@ -145,26 +172,77 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
         email: student.email,
         course: student.course,
         status: student.status,
-        feeOffered: student.feeOffered || 50000,
-        downPayment: student.downPayment || 10000
+        feeOffered: student.feeOffered || 50000
       });
     }
   }, [student]);
 
+  // Fetch student's transaction history
+  const fetchStudentTransactions = async () => {
+    if (!student) return;
+
+    setIsLoadingTransactions(true);
+    try {
+      const studentId = student._id || student.id;
+      const response = await fetch(`http://localhost:5000/api/transactions/student/${studentId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTransactions(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+    } finally {
+      setIsLoadingTransactions(false);
+    }
+  };
+
+  // Load transactions when student changes
+  useEffect(() => {
+    if (student) {
+      fetchStudentTransactions();
+    }
+  }, [student?._id, student?.id]);
+
   if (!student) return null;
 
-  // Use defaults for financial fields if not present (logic for display view)
+  // Calculate financial data from actual stored values
   const feeOffered = student.feeOffered ?? 50000;
   const downPayment = student.downPayment ?? 10000;
+  const feesPaid = student.feesPaid ?? 0;
+  const pendingAmount = Math.max(0, feeOffered - feesPaid);
   const studentDate = student.date || student.joinedDate || new Date().toISOString();
 
-  const totalPaid = downPayment + Math.floor((feeOffered - downPayment) * 0.3);
-  const pendingAmount = feeOffered - totalPaid;
+  // Calculate stats from transactions
+  const paymentsCount = transactions.length;
 
-  // Use static values instead of random generation to prevent data changing
-  const monthsEnrolled = 0;
+  // Calculate months enrolled from enrollment date
+  const enrollmentDate = new Date(studentDate);
+  const today = new Date();
+  const monthsEnrolled = Math.max(0, Math.floor(
+    (today.getTime() - enrollmentDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+  )); // Average days per month
+
+  // Use static values for course stats (these would come from a course progress system)
   const coursesCompleted = 0;
   const averageScore = 0;
+
+  // Handle payment success - update local state AND notify parent
+  const handlePaymentSuccess = (updatedStudent: Student) => {
+    // Update local state immediately for instant UI feedback
+    setStudent(updatedStudent);
+
+    // Notify parent to update its state (keeps everything in sync)
+    if (onStudentUpdate) {
+      onStudentUpdate(updatedStudent);
+    }
+
+    // Refresh transaction history
+    fetchStudentTransactions();
+
+    toast.success("Payment Synced!", {
+      description: "Student balance and transaction history updated."
+    });
+  };
 
   const handleDelete = async () => {
     const studentId = student._id || student.id;
@@ -188,7 +266,6 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
 
     try {
       const studentId = student._id || student.id;
-      // Depending on backend, use _id or custom id. The PUT route supports both.
 
       const response = await fetch(`http://localhost:5000/api/students/${studentId}`, {
         method: 'PUT',
@@ -199,12 +276,18 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
       });
 
       if (response.ok) {
-        toast.success("Profile updated successfully", {
-          description: "Changes will be reflected after refresh."
-        });
+        const updatedStudent = await response.json();
+
+        // Update local state
+        setStudent(updatedStudent);
+
+        // Notify parent
+        if (onStudentUpdate) {
+          onStudentUpdate(updatedStudent);
+        }
+
+        toast.success("Profile updated successfully");
         setIsEditing(false);
-        // We could also call onClose() to refresh list if parent fetches on close
-        onClose();
       } else {
         const errorData = await response.json();
         toast.error("Failed to update profile", { description: errorData.message });
@@ -219,6 +302,7 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
   return (
     <AnimatePresence mode="wait">
       <motion.div
+        key={`student-profile-${student._id || student.id}`}
         className="fixed inset-0 z-50 flex items-center justify-center p-4"
         variants={backdropVariants}
         initial="hidden"
@@ -335,7 +419,7 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
                 { label: "Months Enrolled", value: monthsEnrolled, icon: Clock, color: "text-primary" },
                 { label: "Courses Done", value: coursesCompleted, icon: BookOpen, color: "text-success" },
                 { label: "Avg. Score", value: `${averageScore}%`, icon: Award, color: "text-warning" },
-                { label: "Payments Made", value: 4, icon: CreditCard, color: "text-primary" },
+                { label: "Payments Made", value: paymentsCount, icon: CreditCard, color: "text-primary" },
               ].map((stat, i) => (
                 <motion.div
                   key={stat.label}
@@ -376,8 +460,8 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
               {/* Stats Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 {[
-                  { label: "Fee Offered", value: feeOffered, icon: Banknote, color: "text-foreground", bg: "bg-card" },
-                  { label: "Down Payment", value: downPayment, icon: ArrowDownCircle, color: "text-success", bg: "bg-success/5" },
+                  { label: "Total Fee", value: feeOffered, icon: Banknote, color: "text-foreground", bg: "bg-card" },
+                  { label: "Total Paid", value: feesPaid, icon: ArrowDownCircle, color: "text-success", bg: "bg-success/5" },
                   { label: "Pending Amount", value: pendingAmount, icon: Banknote, color: "text-warning", bg: "bg-warning/5" },
                 ].map((item, i) => (
                   <motion.div
@@ -420,8 +504,185 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
               <EMIProgressBar
                 feeOffered={feeOffered}
                 downPayment={downPayment}
-                totalPaid={totalPaid}
+                totalPaid={feesPaid}
               />
+
+              {/* EMI Calculator & Timeline */}
+              <div className="mt-8 pt-6 border-t border-border/30">
+                <div
+                  className="flex items-center justify-between mb-4 cursor-pointer hover:bg-accent/10 p-2 rounded-lg transition-colors"
+                  onClick={() => setIsEMIExpanded(!isEMIExpanded)}
+                >
+                  <h3 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <Calendar className="w-6 h-6 text-primary" />
+                    EMI Plan & Schedule
+                  </h3>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-medium text-muted-foreground bg-accent/30 px-3 py-1 rounded-full">
+                      {emiMonths} Months Plan
+                    </span>
+                    <motion.div
+                      animate={{ rotate: isEMIExpanded ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    </motion.div>
+                  </div>
+                </div>
+
+                <AnimatePresence>
+                  {isEMIExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="bg-card rounded-2xl border border-border/30 overflow-hidden mb-4">
+                        <div className="p-4 bg-muted/30 border-b border-border/30 flex justify-between items-center">
+                          <div>
+                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Monthly Installment</p>
+                            <p className="text-2xl font-bold text-primary">
+                              {emiMonths > 0
+                                ? `₹${Math.round((feeOffered - downPayment) / emiMonths).toLocaleString('en-IN')}`
+                                : "N/A"}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Plan Details</p>
+                            <p className="text-sm font-medium text-foreground">
+                              {emiMonths > 0
+                                ? `${emiMonths} Months x ₹${Math.round((feeOffered - downPayment) / emiMonths).toLocaleString('en-IN')}`
+                                : "Full Payment"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="max-h-[300px] overflow-y-auto scrollbar-hide p-4">
+                          <div className="space-y-4">
+                            {emiMonths > 0 && Array.from({ length: emiMonths }).map((_, i) => {
+                              const principal = feeOffered - downPayment;
+                              const monthlyAmount = Math.round(principal / emiMonths);
+                              const dueDate = new Date(new Date(studentDate).setMonth(new Date(studentDate).getMonth() + i + 1));
+
+                              // Determine status based on actual fees paid
+                              const cumulativeRequired = downPayment + (monthlyAmount * (i + 1));
+                              const isPaid = feesPaid >= cumulativeRequired;
+                              const isCurrent = !isPaid && feesPaid >= (cumulativeRequired - monthlyAmount);
+
+                              const dueStatus = isPaid ? "Paid" : isCurrent ? "Due Next" : "Pending";
+
+                              return (
+                                <div key={i} className="flex items-center gap-4 relative">
+                                  {/* Connector Line */}
+                                  {i < emiMonths - 1 && (
+                                    <div className="absolute left-[19px] top-8 bottom-[-16px] w-0.5 bg-border/50 z-0"></div>
+                                  )}
+
+                                  <div className={cn(
+                                    "relative z-10 w-10 h-10 rounded-full flex items-center justify-center border-4 shrink-0 font-bold text-xs transition-colors",
+                                    isPaid
+                                      ? "bg-success text-success-foreground border-success/20"
+                                      : isCurrent
+                                        ? "bg-warning text-warning-foreground border-warning/20 animate-pulse"
+                                        : "bg-muted text-muted-foreground border-border"
+                                  )}>
+                                    {i + 1}
+                                  </div>
+
+                                  <div className={cn(
+                                    "flex-1 p-3 rounded-xl border flex justify-between items-center transition-all",
+                                    isPaid ? "bg-success/5 border-success/20" : "bg-card border-border/40"
+                                  )}>
+                                    <div>
+                                      <p className="font-semibold text-sm">Installment #{i + 1}</p>
+                                      <p className="text-xs text-muted-foreground">Due: {dueDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-bold text-sm">₹{monthlyAmount.toLocaleString('en-IN')}</p>
+                                      <Badge variant={isPaid ? "default" : "outline"} className={cn(
+                                        "text-[10px] h-5 px-2",
+                                        isPaid ? "bg-success hover:bg-success" :
+                                          isCurrent ? "text-warning border-warning" : "text-muted-foreground"
+                                      )}>
+                                        {dueStatus}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+
+            {/* Payment History Section */}
+            <motion.div
+              variants={itemVariants}
+              className="rounded-3xl bg-accent/30 border border-border/30 p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <History className="w-5 h-5 text-primary" />
+                  Payment History
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={fetchStudentTransactions}
+                  disabled={isLoadingTransactions}
+                  className="gap-2"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingTransactions ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+
+              {isLoadingTransactions ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : transactions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No payments recorded yet</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-hide">
+                  {transactions.map((tx, i) => (
+                    <motion.div
+                      key={tx._id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="flex items-center justify-between p-3 rounded-xl bg-card border border-border/30"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-success/10">
+                          <ArrowDownCircle className="w-4 h-4 text-success" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-sm">Fee Payment</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-success">+₹{tx.amount.toLocaleString('en-IN')}</span>
+                        <Badge variant="outline" className="bg-success/10 text-success border-success/20 text-xs">
+                          {tx.status}
+                        </Badge>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </motion.div>
 
             {/* Actions */}
@@ -444,12 +705,16 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
               )}
 
               <div className="flex flex-wrap gap-3 ml-auto">
+                {/* Record Fee Payment Button */}
+                <PaymentModal
+                  student={student}
+                  onPaymentSuccess={handlePaymentSuccess}
+                />
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Button variant="outline" onClick={onClose} className="rounded-xl px-6">
                     Close
                   </Button>
                 </motion.div>
-                {/* Send Message Button Removed */}
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Button
                     className="rounded-xl px-6 bg-primary hover:bg-primary/90"
@@ -512,7 +777,7 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
                   onValueChange={(value) => setEditForm({ ...editForm, status: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Active">Active</SelectItem>
@@ -522,28 +787,28 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="fee">Fee Offered (₹)</Label>
+                <Label htmlFor="feeOffered">Fee Offered (₹)</Label>
                 <Input
-                  id="fee"
+                  id="feeOffered"
                   type="number"
                   value={editForm.feeOffered}
-                  onChange={(e) => setEditForm({ ...editForm, feeOffered: Number(e.target.value) })}
+                  onChange={(e) => setEditForm({ ...editForm, feeOffered: parseInt(e.target.value) || 0 })}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="downPayment">Down Payment (₹)</Label>
+                <Label>Down Payment (₹)</Label>
                 <Input
-                  id="downPayment"
                   type="number"
-                  value={editForm.downPayment}
-                  onChange={(e) => setEditForm({ ...editForm, downPayment: Number(e.target.value) })}
-                  required
+                  value={student.downPayment || 0}
+                  disabled
+                  className="bg-muted cursor-not-allowed"
                 />
+                <p className="text-xs text-muted-foreground">Down payment cannot be changed after enrollment</p>
               </div>
             </div>
 
-            <DialogFooter className="gap-2">
+            <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsEditing(false)}>
                 Cancel
               </Button>
@@ -557,29 +822,24 @@ export function StudentFullProfile({ student, onClose, onDelete }: StudentFullPr
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent>
           <AlertDialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-3 rounded-full bg-destructive/10">
-                <AlertTriangle className="w-6 h-6 text-destructive" />
-              </div>
-              <AlertDialogTitle className="text-xl">Delete Student Permanently?</AlertDialogTitle>
-            </div>
-            <AlertDialogDescription className="text-base">
-              Are you sure you want to delete <strong>{student.name}</strong>? This action cannot be undone
-              and will permanently remove all data associated with this student from the database.
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Delete Student
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{student.name}</strong>? This action cannot be undone and will permanently remove all student data including payment history.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 mt-4">
-            <AlertDialogCancel className="rounded-xl" disabled={isDeleting}>
-              Cancel
-            </AlertDialogCancel>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting}
-              className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? "Deleting..." : "Yes, Delete Permanently"}
+              {isDeleting ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

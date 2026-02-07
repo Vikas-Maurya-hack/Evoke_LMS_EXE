@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings as SettingsIcon, Moon, Sun, Bell, Database, Server, CheckCircle2, XCircle, RefreshCw, Palette } from "lucide-react";
+import { Settings as SettingsIcon, Moon, Sun, Bell, Database, Server, CheckCircle2, XCircle, RefreshCw, Palette, Shield, AlertTriangle, Activity } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,28 @@ const Settings = () => {
     const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
     const [isCheckingStatus, setIsCheckingStatus] = useState(false);
 
+    // Data Integrity State
+    interface DataIntegrityStatus {
+        healthy: boolean;
+        message: string;
+        summary: {
+            studentsChecked: number;
+            issuesFound: number;
+        };
+        issues: Array<{
+            studentId: string;
+            studentName: string;
+            feesPaidInStudent: number;
+            totalFromTransactions: number;
+            difference: number;
+        }>;
+        timestamp: string;
+    }
+
+    const [dataIntegrity, setDataIntegrity] = useState<DataIntegrityStatus | null>(null);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
+
     const checkDatabaseStatus = async () => {
         setIsCheckingStatus(true);
         try {
@@ -60,9 +82,45 @@ const Settings = () => {
         }
     };
 
+    // Verify data integrity
+    const verifyDataIntegrity = async () => {
+        setIsVerifying(true);
+        try {
+            const response = await fetch('http://localhost:5000/api/payments/verify');
+            if (response.ok) {
+                const data = await response.json();
+                setDataIntegrity(data);
+            }
+        } catch (error) {
+            console.error('Failed to verify data integrity:', error);
+        } finally {
+            setIsVerifying(false);
+        }
+    };
+
+    // Sync payments (fix inconsistencies)
+    const syncPayments = async () => {
+        setIsSyncing(true);
+        try {
+            const response = await fetch('http://localhost:5000/api/students/sync-payments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (response.ok) {
+                // After sync, verify again
+                await verifyDataIntegrity();
+            }
+        } catch (error) {
+            console.error('Failed to sync payments:', error);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
     // Check database status on mount
     useEffect(() => {
         checkDatabaseStatus();
+        verifyDataIntegrity();
     }, []);
 
     // Apply dark mode whenever it changes
@@ -89,7 +147,7 @@ const Settings = () => {
                     variants={staggerContainer}
                     initial="hidden"
                     animate="visible"
-                    className="flex-1 px-4 lg:px-8 pb-4 overflow-y-auto scrollbar-custom"
+                    className="flex-1 px-4 lg:px-8 pb-4 overflow-y-auto scrollbar-hide"
                 >
                     <motion.div variants={fadeInUp} className="mb-6">
                         <div className="flex items-center gap-3 mb-2">
@@ -308,6 +366,108 @@ const Settings = () => {
                                         {systemStatus && (
                                             <p className="text-sm text-muted-foreground text-center">
                                                 Last checked: {new Date(systemStatus.database.timestamp).toLocaleTimeString()}
+                                            </p>
+                                        )}
+                                    </motion.div>
+
+                                    {/* Data Integrity Panel */}
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        transition={{ delay: 0.1 }}
+                                        className="bg-card rounded-2xl p-6 border border-border/30 space-y-6"
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <Shield className="w-5 h-5 text-primary" />
+                                                <h3 className="text-lg font-semibold">Payment Data Integrity</h3>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={verifyDataIntegrity}
+                                                    disabled={isVerifying}
+                                                    className="gap-2"
+                                                >
+                                                    <Activity className={`w-4 h-4 ${isVerifying ? 'animate-pulse' : ''}`} />
+                                                    Verify
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={syncPayments}
+                                                    disabled={isSyncing}
+                                                    className="gap-2"
+                                                >
+                                                    <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                                                    Sync
+                                                </Button>
+                                            </div>
+                                        </div>
+
+                                        {/* Status */}
+                                        <div className={`p-5 rounded-xl border ${dataIntegrity?.healthy
+                                            ? 'bg-success/5 border-success/30'
+                                            : 'bg-warning/5 border-warning/30'
+                                            }`}>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-3 rounded-xl ${dataIntegrity?.healthy ? 'bg-success/10' : 'bg-warning/10'
+                                                    }`}>
+                                                    {dataIntegrity?.healthy ? (
+                                                        <CheckCircle2 className="w-6 h-6 text-success" />
+                                                    ) : (
+                                                        <AlertTriangle className="w-6 h-6 text-warning" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h4 className="font-semibold text-foreground">
+                                                        {dataIntegrity?.healthy ? 'All Data Consistent' : 'Inconsistencies Found'}
+                                                    </h4>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {dataIntegrity?.message || 'Checking...'}
+                                                    </p>
+                                                    {dataIntegrity && (
+                                                        <div className="mt-2 flex gap-4 text-sm">
+                                                            <span>
+                                                                Students: <strong>{dataIntegrity.summary.studentsChecked}</strong>
+                                                            </span>
+                                                            <span className={dataIntegrity.summary.issuesFound > 0 ? 'text-warning' : 'text-success'}>
+                                                                Issues: <strong>{dataIntegrity.summary.issuesFound}</strong>
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Issues List */}
+                                        {dataIntegrity?.issues && dataIntegrity.issues.length > 0 && (
+                                            <div className="space-y-2">
+                                                <h4 className="text-sm font-medium text-muted-foreground">Issues Detected:</h4>
+                                                <div className="max-h-40 overflow-y-auto space-y-2">
+                                                    {dataIntegrity.issues.map((issue, i) => (
+                                                        <div key={i} className="p-3 rounded-lg bg-warning/5 border border-warning/20 text-sm">
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="font-medium">{issue.studentName}</span>
+                                                                <span className="text-muted-foreground text-xs">{issue.studentId}</span>
+                                                            </div>
+                                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                                Student Record: ₹{issue.feesPaidInStudent.toLocaleString('en-IN')} |
+                                                                Transactions: ₹{issue.totalFromTransactions.toLocaleString('en-IN')} |
+                                                                <span className="text-warning"> Diff: ₹{Math.abs(issue.difference).toLocaleString('en-IN')}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Last Verified */}
+                                        {dataIntegrity?.timestamp && (
+                                            <p className="text-xs text-muted-foreground text-center">
+                                                Last verified: {new Date(dataIntegrity.timestamp).toLocaleString()}
                                             </p>
                                         )}
                                     </motion.div>

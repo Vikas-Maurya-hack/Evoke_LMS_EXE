@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { SearchableItem } from "@/hooks/useSearch";
-import { students } from "@/components/dashboard/StudentActivityTable";
 import { courseData } from "@/constants/courseData";
 
 interface SearchContextType {
@@ -16,17 +15,8 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
     // Build searchable items from all data sources
+    // Note: Students are now fetched from database, so we don't include them in static search
     const searchableItems: SearchableItem[] = [
-        // Students
-        ...students.map((student) => ({
-            id: student.id,
-            name: student.name,
-            type: "student" as const,
-            description: student.course,
-            email: student.email,
-            course: student.course,
-        })),
-
         // Courses
         ...courseData.flatMap((category) =>
             (category.courses || []).flatMap((course) =>

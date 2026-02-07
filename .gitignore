@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Build artifacts
+build_output.txt
+bun.lockb
+
 # Environment variables - NEVER COMMIT THESE
 .env
 .env.local

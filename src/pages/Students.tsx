@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
-import { Search, Filter, SlidersHorizontal, Grid3X3, List, Users, Plus } from "lucide-react";
+import { Search, Filter, SlidersHorizontal, Grid3X3, List, Users, Plus, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -63,32 +63,161 @@ const filterVariants: Variants = {
 const Students = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-  // Fetch from DB
-  useEffect(() => {
-    const fetchStudents = async () => {
-      try {
-        const res = await fetch('http://localhost:5000/api/students');
-        if (res.ok) {
-          const data = await res.json();
-          setStudents(data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch students", error);
-        toast({
-          title: "Error",
-          description: "Could not load students from database.",
-          variant: "destructive"
-        });
+  // Fetch students from database
+  const fetchStudents = useCallback(async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
+    setIsRefreshing(true);
+
+    try {
+      const res = await fetch('http://localhost:5000/api/students');
+      if (res.ok) {
+        const data = await res.json();
+        setStudents(data);
       }
-    };
+    } catch (error) {
+      console.error("Failed to fetch students", error);
+      toast({
+        title: "Error",
+        description: "Could not load students from database.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [toast]);
+
+  // Initial fetch
+  useEffect(() => {
     fetchStudents();
+  }, [fetchStudents]);
+
+  // Handle student update from profile modal (e.g., after payment)
+  const handleStudentUpdate = useCallback((updatedStudent: Student) => {
+    setStudents(prevStudents =>
+      prevStudents.map(s =>
+        (s._id === updatedStudent._id || s.id === updatedStudent.id)
+          ? updatedStudent
+          : s
+      )
+    );
+
+    // Also update selected student if it's the same one
+    setSelectedStudent(prev =>
+      prev && (prev._id === updatedStudent._id || prev.id === updatedStudent.id)
+        ? updatedStudent
+        : prev
+    );
   }, []);
+
+  // Handle student delete
+  const handleStudentDelete = useCallback(async (studentId: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/students/${studentId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete student');
+      }
+
+      // Remove student from local state
+      setStudents(prev => prev.filter(s => (s._id !== studentId && s.id !== studentId)));
+
+      toast({
+        title: "Student Deleted",
+        description: "The student has been permanently removed from the database.",
+      });
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete student. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  }, [toast]);
+
+  // Handle adding new student
+  const handleAddStudent = useCallback(async (newStudentData: Omit<Student, "id">, emiConfig?: { enabled: boolean, installments: number, frequency: string }) => {
+    try {
+      const response = await fetch('http://localhost:5000/api/students', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newStudentData.name,
+          email: newStudentData.email,
+          course: newStudentData.course,
+          status: newStudentData.status,
+          feeOffered: newStudentData.feeOffered,
+          downPayment: newStudentData.downPayment,
+          avatar: newStudentData.avatar // Include avatar
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save student');
+      }
+
+      const savedStudent = await response.json();
+
+      // Create EMI Plan if enabled
+      if (emiConfig?.enabled) {
+        try {
+          const token = sessionStorage.getItem('token');
+          const emiResponse = await fetch('http://localhost:5000/api/emi-plans', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              studentId: savedStudent._id,
+              numberOfInstallments: emiConfig.installments,
+              frequency: emiConfig.frequency,
+              startDate: new Date().toISOString()
+            })
+          });
+
+          if (emiResponse.ok) {
+            toast({ title: "EMI Plan Created", description: "Payment schedule generated automatically." });
+          } else {
+            console.error("EMI Creation failed:", await emiResponse.text());
+            toast({ title: "Warning", description: "Student created but EMI plan creation failed. You can create it manually later.", variant: "destructive" });
+          }
+        } catch (err) {
+          console.error("Failed to create EMI plan", err);
+          toast({ title: "EMI Plan Error", description: "Student created successfully, but EMI plan could not be generated. Please check your connection.", variant: "destructive" });
+        }
+      }
+
+      // Add the saved student (with DB-generated ID) to state
+      setStudents(prev => [savedStudent, ...prev]);
+
+      toast({
+        title: "Student Added Successfully!",
+        description: `${savedStudent.name} has been enrolled in ${savedStudent.course}`,
+      });
+    } catch (error) {
+      console.error("Error saving student:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save student to database. Please try again.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
 
   const filters = [
     { id: "all", label: "All Students", count: students.length },
@@ -134,68 +263,36 @@ const Students = () => {
               </p>
             </div>
 
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                className="rounded-xl bg-primary hover:bg-primary/90 shadow-lg"
-                onClick={() => setIsAddDialogOpen(true)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add New Student
-              </Button>
-            </motion.div>
+            <div className="flex gap-3">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => fetchStudents(false)}
+                  disabled={isRefreshing}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  className="rounded-xl bg-primary hover:bg-primary/90 shadow-lg"
+                  onClick={() => setIsAddDialogOpen(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add New Student
+                </Button>
+              </motion.div>
+            </div>
           </motion.div>
 
-          {/* Add Student Handler */}
-          {(() => {
-            const handleAddStudent = async (newStudentData: Omit<Student, "id">) => {
-              try {
-                // Save to database via API
-                const response = await fetch('http://localhost:5000/api/students', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    name: newStudentData.name,
-                    email: newStudentData.email,
-                    course: newStudentData.course,
-                    status: newStudentData.status,
-                    feeOffered: newStudentData.feeOffered,
-                    downPayment: newStudentData.downPayment,
-                  }),
-                });
-
-                if (!response.ok) {
-                  throw new Error('Failed to save student');
-                }
-
-                const savedStudent = await response.json();
-
-                // Add the saved student (with DB-generated ID) to state
-                setStudents([savedStudent, ...students]);
-
-                toast({
-                  title: "Student Added Successfully!",
-                  description: `${savedStudent.name} has been enrolled in ${savedStudent.course}`,
-                });
-              } catch (error) {
-                console.error("Error saving student:", error);
-                toast({
-                  title: "Error",
-                  description: "Failed to save student to database. Please try again.",
-                  variant: "destructive",
-                });
-              }
-            };
-
-            return (
-              <AddStudentDialog
-                isOpen={isAddDialogOpen}
-                onClose={() => setIsAddDialogOpen(false)}
-                onAddStudent={handleAddStudent}
-              />
-            );
-          })()}
+          {/* Add Student Dialog */}
+          <AddStudentDialog
+            isOpen={isAddDialogOpen}
+            onClose={() => setIsAddDialogOpen(false)}
+            onAddStudent={handleAddStudent}
+          />
 
           {/* Search and Filters */}
           <motion.div
@@ -282,45 +379,60 @@ const Students = () => {
           </motion.div>
         </motion.div>
 
-        {/* Students Grid */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className={`grid gap-6 ${viewMode === "grid"
-            ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-            : "grid-cols-1"
-            }`}
-        >
-          <AnimatePresence mode="popLayout">
-            {filteredStudents.map((student, index) => (
-              <StudentCard
-                key={student.id}
-                student={student}
-                index={index}
-                onClick={() => setSelectedStudent(student)}
-              />
-            ))}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Empty State */}
-        {filteredStudents.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="flex flex-col items-center justify-center py-20 text-center"
-          >
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20">
             <motion.div
-              className="p-6 rounded-3xl bg-muted/50 mb-4"
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             >
-              <Users className="w-12 h-12 text-muted-foreground" />
+              <RefreshCw className="w-8 h-8 text-primary" />
             </motion.div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">No students found</h3>
-            <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
-          </motion.div>
+            <p className="mt-4 text-muted-foreground">Loading students...</p>
+          </div>
+        ) : (
+          <>
+            {/* Students Grid */}
+            <motion.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className={`grid gap-6 ${viewMode === "grid"
+                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                : "grid-cols-1"
+                }`}
+            >
+              <AnimatePresence mode="popLayout">
+                {filteredStudents.map((student, index) => (
+                  <StudentCard
+                    key={student._id || student.id}
+                    student={student}
+                    index={index}
+                    onClick={() => setSelectedStudent(student)}
+                  />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+
+            {/* Empty State */}
+            {filteredStudents.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center justify-center py-20 text-center"
+              >
+                <motion.div
+                  className="p-6 rounded-3xl bg-muted/50 mb-4"
+                  animate={{ y: [0, -10, 0] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Users className="w-12 h-12 text-muted-foreground" />
+                </motion.div>
+                <h3 className="text-xl font-semibold text-foreground mb-2">No students found</h3>
+                <p className="text-muted-foreground">Try adjusting your search or filter criteria</p>
+              </motion.div>
+            )}
+          </>
         )}
       </main>
 
@@ -330,33 +442,8 @@ const Students = () => {
           <StudentFullProfile
             student={selectedStudent}
             onClose={() => setSelectedStudent(null)}
-            onDelete={async (studentId: string) => {
-              try {
-                const response = await fetch(`http://localhost:5000/api/students/${studentId}`, {
-                  method: 'DELETE',
-                });
-
-                if (!response.ok) {
-                  throw new Error('Failed to delete student');
-                }
-
-                // Remove student from local state
-                setStudents(students.filter(s => (s._id !== studentId && s.id !== studentId)));
-
-                toast({
-                  title: "Student Deleted",
-                  description: "The student has been permanently removed from the database.",
-                });
-              } catch (error) {
-                console.error("Delete error:", error);
-                toast({
-                  title: "Error",
-                  description: "Failed to delete student. Please try again.",
-                  variant: "destructive",
-                });
-                throw error;
-              }
-            }}
+            onDelete={handleStudentDelete}
+            onStudentUpdate={handleStudentUpdate}
           />
         )}
       </AnimatePresence>

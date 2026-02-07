@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useSearchContext } from "@/contexts/SearchContext";
 import { useSearch } from "@/hooks/useSearch";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -169,7 +169,7 @@ export function DashboardHeader() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         },
         body: JSON.stringify({ currentPassword, newPassword })
       });
@@ -200,7 +200,7 @@ export function DashboardHeader() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         },
         body: JSON.stringify({ targetUsername: 'Admin', newPassword: adminResetNewPassword })
       });
@@ -356,10 +356,12 @@ export function DashboardHeader() {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setIsChangePasswordOpen(true)}>
-                <Key className="mr-2 h-4 w-4" />
-                <span>Change Password</span>
-              </DropdownMenuItem>
+              {user?.role === 'super_admin' && (
+                <DropdownMenuItem onClick={() => setIsChangePasswordOpen(true)}>
+                  <Key className="mr-2 h-4 w-4" />
+                  <span>Change Password</span>
+                </DropdownMenuItem>
+              )}
               {user?.role === 'super_admin' && (
                 <DropdownMenuItem onClick={() => setIsAdminResetOpen(true)}>
                   <ShieldCheck className="mr-2 h-4 w-4" />

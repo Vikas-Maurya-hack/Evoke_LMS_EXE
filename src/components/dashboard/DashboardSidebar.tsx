@@ -5,7 +5,6 @@ import {
   BookOpen,
   CreditCard,
   Settings,
-  HelpCircle,
   GraduationCap,
   TrendingUp,
   Bell

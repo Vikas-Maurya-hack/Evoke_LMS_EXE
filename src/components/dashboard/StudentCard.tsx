@@ -66,9 +66,9 @@ const shimmerVariants: Variants = {
 export function StudentCard({ student, index, onClick }: StudentCardProps) {
   // Safe defaults for fields that might be undefined
   const feeOffered = student.feeOffered ?? 50000;
-  const downPayment = student.downPayment ?? 10000;
+  const feesPaid = student.feesPaid ?? 0;
   const studentDate = student.date || student.joinedDate || new Date().toISOString();
-  const paidPercentage = feeOffered > 0 ? ((downPayment / feeOffered) * 100).toFixed(0) : "0";
+  const paidPercentage = feeOffered > 0 ? Math.min(100, (feesPaid / feeOffered) * 100).toFixed(0) : "0";
 
   return (
     <motion.div

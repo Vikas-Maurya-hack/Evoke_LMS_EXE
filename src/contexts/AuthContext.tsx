@@ -11,10 +11,10 @@ const AuthContext = createContext({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-    // Initialize user state lazily from localStorage to persist session on refresh
+    // Initialize user state lazily from sessionStorage to persist session on refresh but not on close
     const [user, setUser] = useState(() => {
         try {
-            const storedUser = localStorage.getItem('user');
+            const storedUser = sessionStorage.getItem('user');
             return storedUser ? JSON.parse(storedUser) : null;
         } catch (error) {
             return null;
@@ -23,17 +23,17 @@ export const AuthProvider = ({ children }) => {
 
     const navigate = useNavigate();
 
-    const login = (userData) => {
+    const login = (userData: any) => {
         setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('token', userData.token);
+        sessionStorage.setItem('user', JSON.stringify(userData));
+        sessionStorage.setItem('token', userData.token);
         navigate('/');
     };
 
     const logout = () => {
         setUser(null);
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('token');
         navigate('/login');
     };
 
