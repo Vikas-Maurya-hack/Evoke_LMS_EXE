@@ -9,33 +9,32 @@ import Student from './models/Student.js';
 import User from './models/User.js';
 import Transaction from './models/Transaction.js';
 import EMIPlan from './models/EMIPlan.js';
+import crypto from 'crypto';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// SECURITY: All sensitive credentials MUST be in environment variables
-const JWT_SECRET = process.env.JWT_SECRET;
-const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+// Auto-generate JWT_SECRET if not set (essential for exe/desktop packaging)
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('base64');
+const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'Safdar2026';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin2026';
 
 // Validate required environment variables on startup
 const validateEnvVariables = () => {
-    const required = ['MONGO_URI', 'JWT_SECRET', 'SUPER_ADMIN_PASSWORD', 'ADMIN_PASSWORD'];
-    const missing = required.filter(key => !process.env[key]);
-
-    if (missing.length > 0) {
-        console.error('❌ FATAL ERROR: Missing required environment variables:');
-        missing.forEach(key => console.error(`   - ${key}`));
-        console.error('\nPlease add these to your .env file:');
-        console.error('MONGO_URI=your_mongodb_connection_string');
-        console.error('JWT_SECRET=your_secure_random_secret_key');
-        console.error('SUPER_ADMIN_PASSWORD=your_super_admin_password');
-        console.error('ADMIN_PASSWORD=your_admin_password');
+    // MONGO_URI is the only truly required variable — everything else has defaults
+    if (!process.env.MONGO_URI) {
+        console.error('❌ FATAL ERROR: MONGO_URI is not set.');
+        console.error('Please add MONGO_URI to your .env file or environment.');
         process.exit(1);
     }
-    console.log('✅ All required environment variables validated.');
+
+    if (!process.env.JWT_SECRET) {
+        console.log('⚠️  JWT_SECRET not set — auto-generated for this session.');
+    }
+
+    console.log('✅ All required configuration validated.');
 };
 
 // Middleware
