@@ -62,21 +62,21 @@ export const courseData: Category[] = [
                 name: "HSC",
                 icon: BookOpen,
                 description: "Maharashtra State Board",
-                boards: ["Science", "Commerce", "Arts"]
+                boards: ["11th", "12th"]
             },
             {
                 id: "cbse",
                 name: "CBSE",
                 icon: BookOpen,
                 description: "Central Board of Secondary Education",
-                boards: ["Science", "Commerce", "Arts"]
+                boards: ["11th", "12th"]
             },
             {
                 id: "icse",
                 name: "ICSE",
                 icon: BookOpen,
                 description: "Indian Certificate of Secondary Education",
-                boards: ["Science", "Commerce", "Arts"]
+                boards: ["11th", "12th"]
             }
         ]
     },

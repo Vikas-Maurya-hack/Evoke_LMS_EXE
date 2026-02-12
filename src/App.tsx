@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SearchProvider } from "@/contexts/SearchContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { Watermark } from "@/components/Watermark";
+
 import { useEffect } from "react";
 import Index from "./pages/Index";
 import Students from "./pages/Students";
@@ -35,7 +35,7 @@ const App = () => {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <SearchProvider>
-          <Watermark />
+
           <Toaster />
           <Sonner />
           <BrowserRouter>

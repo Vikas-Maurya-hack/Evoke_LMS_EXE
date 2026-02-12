@@ -13,14 +13,13 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Student } from "@/components/dashboard/StudentActivityTable";
+import { HierarchicalCoursePicker } from "@/components/dashboard/HierarchicalCoursePicker";
 
 interface AddStudentDialogProps {
     isOpen: boolean;
     onClose: () => void;
     onAddStudent: (student: Omit<Student, "id">, emiConfig?: { enabled: boolean, installments: number, frequency: string }) => void | Promise<void>;
 }
-
-const courses = ["ACCA", "CPA", "CFA", "CMA", "CA"];
 
 export function AddStudentDialog({ isOpen, onClose, onAddStudent }: AddStudentDialogProps) {
     const [formData, setFormData] = useState({
@@ -236,21 +235,12 @@ export function AddStudentDialog({ isOpen, onClose, onAddStudent }: AddStudentDi
 
                                 <div className="space-y-2">
                                     <Label>Course</Label>
-                                    <Select
+                                    <HierarchicalCoursePicker
                                         value={formData.course}
                                         onValueChange={(value) => setFormData({ ...formData, course: value })}
-                                    >
-                                        <SelectTrigger className={errors.course ? "border-destructive" : ""}>
-                                            <SelectValue placeholder="Select course" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {courses.map((course) => (
-                                                <SelectItem key={course} value={course}>
-                                                    {course}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        error={!!errors.course}
+                                        placeholder="Select course path..."
+                                    />
                                     {errors.course && <p className="text-xs text-destructive">{errors.course}</p>}
                                 </div>
 

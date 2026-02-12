@@ -55,6 +55,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { HierarchicalCoursePicker } from "@/components/dashboard/HierarchicalCoursePicker";
 
 interface StudentFullProfileProps {
   student: Student | null;
@@ -763,11 +764,10 @@ export function StudentFullProfile({ student: initialStudent, onClose, onDelete,
               </div>
               <div className="space-y-2">
                 <Label htmlFor="course">Course</Label>
-                <Input
-                  id="course"
+                <HierarchicalCoursePicker
                   value={editForm.course}
-                  onChange={(e) => setEditForm({ ...editForm, course: e.target.value })}
-                  required
+                  onValueChange={(value) => setEditForm({ ...editForm, course: value })}
+                  placeholder="Select course path..."
                 />
               </div>
               <div className="space-y-2">

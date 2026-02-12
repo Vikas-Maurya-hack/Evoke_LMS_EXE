@@ -278,40 +278,5 @@ All colors MUST be HSL.
     transform: scale(1.05);
   }
 
-  /* Watermark Background - Subtle branding */
-  body::before {
-    content: "";
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 50%;
-    max-width: 600px;
-    height: 50%;
-    max-height: 600px;
-    background-image: url('/watermark-bg.jpg');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    opacity: 0.25;
-    pointer-events: none;
-    z-index: 1;
-    transition: opacity 0.3s ease;
-  }
 
-  /* Slightly more visible in dark mode */
-  .dark body::before {
-    opacity: 0.3;
-  }
-
-  /* Ensure content is above watermark */
-  #root {
-    position: relative;
-    z-index: 10;
-  }
-
-  /* Make main containers semi-transparent to show watermark */
-  #root>* {
-    position: relative;
-  }
 }
