@@ -273,10 +273,12 @@ export function AddStudentDialog({ isOpen, onClose, onAddStudent }: AddStudentDi
                                             <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                             <Input
                                                 type="number"
+                                                step="1"
                                                 className={`pl-9 ${errors.feeOffered ? "border-destructive" : ""}`}
                                                 placeholder="50000"
                                                 value={formData.feeOffered}
                                                 onChange={(e) => setFormData({ ...formData, feeOffered: e.target.value })}
+                                                onWheel={(e) => (e.target as HTMLInputElement).blur()}
                                             />
                                         </div>
                                         {errors.feeOffered && <p className="text-xs text-destructive">{errors.feeOffered}</p>}
@@ -287,10 +289,12 @@ export function AddStudentDialog({ isOpen, onClose, onAddStudent }: AddStudentDi
                                             <Wallet className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                                             <Input
                                                 type="number"
+                                                step="1"
                                                 className={`pl-9 ${errors.downPayment ? "border-destructive" : ""}`}
                                                 placeholder="10000"
                                                 value={formData.downPayment}
                                                 onChange={(e) => setFormData({ ...formData, downPayment: e.target.value })}
+                                                onWheel={(e) => (e.target as HTMLInputElement).blur()}
                                             />
                                         </div>
                                         {errors.downPayment && <p className="text-xs text-destructive">{errors.downPayment}</p>}
