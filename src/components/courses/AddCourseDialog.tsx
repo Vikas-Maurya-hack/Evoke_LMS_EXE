@@ -37,7 +37,7 @@ export function AddCourseDialog({ open, onOpenChange }: AddCourseDialogProps) {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:5000/api/courses', {
+            const response = await fetch('/api/courses', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, instructor, category, status, price })

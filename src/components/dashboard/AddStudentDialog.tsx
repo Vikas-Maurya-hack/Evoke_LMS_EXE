@@ -68,7 +68,7 @@ export function AddStudentDialog({ isOpen, onClose, onAddStudent }: AddStudentDi
         } else {
             // Check for duplicate email
             try {
-                const response = await fetch('http://localhost:5000/api/students');
+                const response = await fetch('/api/students');
                 if (response.ok) {
                     const students = await response.json();
                     const emailExists = students.some((s: Student) =>

@@ -62,7 +62,7 @@ const Settings = () => {
     const checkDatabaseStatus = async () => {
         setIsCheckingStatus(true);
         try {
-            const response = await fetch('http://localhost:5000/api/status');
+            const response = await fetch('/api/status');
             if (response.ok) {
                 const data = await response.json();
                 setSystemStatus(data);
@@ -86,7 +86,7 @@ const Settings = () => {
     const verifyDataIntegrity = async () => {
         setIsVerifying(true);
         try {
-            const response = await fetch('http://localhost:5000/api/payments/verify');
+            const response = await fetch('/api/payments/verify');
             if (response.ok) {
                 const data = await response.json();
                 setDataIntegrity(data);
@@ -102,7 +102,7 @@ const Settings = () => {
     const syncPayments = async () => {
         setIsSyncing(true);
         try {
-            const response = await fetch('http://localhost:5000/api/students/sync-payments', {
+            const response = await fetch('/api/students/sync-payments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });

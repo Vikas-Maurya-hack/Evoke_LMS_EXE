@@ -66,7 +66,7 @@ export function StudentActivityTable({ onStudentClick, refreshTrigger }: Student
   const fetchRecentStudents = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const response = await fetch('http://localhost:5000/api/students');
+      const response = await fetch('/api/students');
       if (response.ok) {
         const data = await response.json();
         // Get recent students

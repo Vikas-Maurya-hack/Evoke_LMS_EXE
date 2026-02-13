@@ -65,16 +65,16 @@ const Analytics = () => {
         setIsLoading(true);
         try {
             // Fetch students
-            const studentsRes = await fetch('http://localhost:5000/api/students');
+            const studentsRes = await fetch('/api/students');
             const students = studentsRes.ok ? await studentsRes.json() : [];
 
             // Fetch transactions - API returns { transactions: [...], ... }
-            const transactionsRes = await fetch('http://localhost:5000/api/transactions?limit=1000');
+            const transactionsRes = await fetch('/api/transactions?limit=1000');
             const transactionsResult = transactionsRes.ok ? await transactionsRes.json() : { transactions: [] };
             const transactions = Array.isArray(transactionsResult) ? transactionsResult : (transactionsResult.transactions || []);
 
             // Fetch payment mode analytics
-            const paymentModesRes = await fetch('http://localhost:5000/api/analytics/payment-modes');
+            const paymentModesRes = await fetch('/api/analytics/payment-modes');
             if (paymentModesRes.ok) {
                 const paymentModesData = await paymentModesRes.json();
                 setPaymentModeData(paymentModesData.modes || []);

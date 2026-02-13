@@ -59,7 +59,7 @@ export function PaymentModal({ student, onPaymentSuccess }: PaymentModalProps) {
             const token = sessionStorage.getItem('token');
             const studentId = student._id || student.id;
 
-            const response = await fetch('http://localhost:5000/api/payments/collect', {
+            const response = await fetch('/api/payments/collect', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

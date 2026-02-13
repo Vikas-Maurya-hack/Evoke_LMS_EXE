@@ -4,17 +4,36 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import Course from './models/Course.js';
 import Student from './models/Student.js';
 import User from './models/User.js';
 import Transaction from './models/Transaction.js';
 import EMIPlan from './models/EMIPlan.js';
-import crypto from 'crypto';
 
-dotenv.config();
+// ES Module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+import crypto from 'crypto';
+import dns from 'dns';
+
+// Force Google Public DNS for mongodb+srv:// SRV lookups
+// Fixes ECONNREFUSED on networks with restrictive DNS servers
+dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1']);
+
+// Save PORT from parent process (Electron) BEFORE dotenv loads
+const parentPort = process.env.PORT;
+
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || '.env' });
+
+// Parent process PORT takes priority over .env PORT
+if (parentPort) {
+    process.env.PORT = parentPort;
+}
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+let PORT = parseInt(process.env.PORT) || 5050;
 
 // Auto-generate JWT_SECRET if not set (essential for exe/desktop packaging)
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('base64');
@@ -106,8 +125,8 @@ const protect = async (req, res, next) => {
     }
 };
 
-// Routes
-app.get('/', (req, res) => {
+// API Health Check (moved to /api/health so '/' serves the frontend)
+app.get('/api/health', (req, res) => {
     res.json({ message: 'API is running successfully!' });
 });
 
@@ -1408,25 +1427,74 @@ app.get('/api/students/:id/ledger', async (req, res) => {
     }
 });
 
-// Database Connection
-const connectDB = async () => {
-    try {
-        const conn = await mongoose.connect(process.env.MONGO_URI);
-        console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+// Database Connection with retry logic
+const connectDB = async (retries = 5) => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            console.log(`🔌 MongoDB connection attempt ${attempt}/${retries}...`);
+            const conn = await mongoose.connect(process.env.MONGO_URI, {
+                serverSelectionTimeoutMS: 10000,
+                connectTimeoutMS: 10000,
+                socketTimeoutMS: 45000,
+                family: 4, // Force IPv4 — fixes DNS SRV issues in packaged apps
+            });
+            console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 
-        // Seed users after connection
-        await seedUsers();
+            // Seed users after connection
+            await seedUsers();
+            return; // Success — exit the function
 
-    } catch (error) {
-        console.error(`❌ Database Connection Error: ${error.message}`);
-        process.exit(1);
+        } catch (error) {
+            console.error(`❌ Attempt ${attempt} failed: ${error.message}`);
+            if (attempt < retries) {
+                console.log(`⏳ Retrying in 3 seconds...`);
+                await new Promise(r => setTimeout(r, 3000));
+            } else {
+                console.error(`❌ All ${retries} connection attempts failed.`);
+                console.error(`   MONGO_URI: ${process.env.MONGO_URI ? process.env.MONGO_URI.substring(0, 30) + '...' : 'NOT SET'}`);
+                process.exit(1);
+            }
+        }
     }
 };
 
-// Start Server
+// ============================================================
+// SERVE FRONTEND (Production / Desktop App)
+// ============================================================
+// Serve the built Vite frontend from 'dist/' folder
+const distPath = path.join(__dirname, '..', 'dist');
+app.use(express.static(distPath));
+
+// SPA fallback: any route that doesn't match an API endpoint
+// should return index.html (React Router handles it client-side)
+app.get(/.*/, (req, res) => {
+    // Don't intercept API routes
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
+});
+
+// Start Server with automatic port retry
+function startListening(port, maxRetries = 10) {
+    const server = app.listen(port, () => {
+        PORT = port;
+        console.log(`🚀 Server running on port ${port}`);
+    });
+
+    server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE' && maxRetries > 0) {
+            console.log(`⚠️  Port ${port} is busy, trying ${port + 1}...`);
+            server.close();
+            startListening(port + 1, maxRetries - 1);
+        } else {
+            console.error(`❌ Failed to start server: ${err.message}`);
+            process.exit(1);
+        }
+    });
+}
+
 validateEnvVariables();
 connectDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`🚀 Server running on port ${PORT}`);
-    });
+    startListening(PORT);
 });

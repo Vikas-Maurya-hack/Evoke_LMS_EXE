@@ -77,7 +77,7 @@ const Students = () => {
     setIsRefreshing(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/students');
+      const res = await fetch('/api/students');
       if (res.ok) {
         const data = await res.json();
         setStudents(data);
@@ -121,7 +121,7 @@ const Students = () => {
   // Handle student delete
   const handleStudentDelete = useCallback(async (studentId: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/students/${studentId}`, {
+      const response = await fetch(`/api/students/${studentId}`, {
         method: 'DELETE',
       });
 
@@ -150,7 +150,7 @@ const Students = () => {
   // Handle adding new student
   const handleAddStudent = useCallback(async (newStudentData: Omit<Student, "id">, emiConfig?: { enabled: boolean, installments: number, frequency: string }) => {
     try {
-      const response = await fetch('http://localhost:5000/api/students', {
+      const response = await fetch('/api/students', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -176,7 +176,7 @@ const Students = () => {
       if (emiConfig?.enabled) {
         try {
           const token = sessionStorage.getItem('token');
-          const emiResponse = await fetch('http://localhost:5000/api/emi-plans', {
+          const emiResponse = await fetch('/api/emi-plans', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

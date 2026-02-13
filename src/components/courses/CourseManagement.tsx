@@ -59,7 +59,7 @@ export function CourseManagement() {
     // Fetch courses from Backend
     const fetchCourses = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/courses');
+            const response = await fetch('/api/courses');
             if (!response.ok) throw new Error('Failed to fetch courses');
             const data = await response.json();
 

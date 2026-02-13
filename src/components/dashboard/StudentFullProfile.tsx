@@ -185,7 +185,7 @@ export function StudentFullProfile({ student: initialStudent, onClose, onDelete,
     setIsLoadingTransactions(true);
     try {
       const studentId = student._id || student.id;
-      const response = await fetch(`http://localhost:5000/api/transactions/student/${studentId}`);
+      const response = await fetch(`/api/transactions/student/${studentId}`);
       if (response.ok) {
         const data = await response.json();
         setTransactions(data);
@@ -268,7 +268,7 @@ export function StudentFullProfile({ student: initialStudent, onClose, onDelete,
     try {
       const studentId = student._id || student.id;
 
-      const response = await fetch(`http://localhost:5000/api/students/${studentId}`, {
+      const response = await fetch(`/api/students/${studentId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

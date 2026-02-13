@@ -165,7 +165,7 @@ export function DashboardHeader() {
 
     setIsSubmitting(true);
     try {
-      const response = await fetch('http://localhost:5000/api/auth/change-password', {
+      const response = await fetch('/api/auth/change-password', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -196,7 +196,7 @@ export function DashboardHeader() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const response = await fetch('http://localhost:5000/api/auth/admin-reset-password', {
+      const response = await fetch('/api/auth/admin-reset-password', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -37,11 +37,11 @@ const Index = () => {
   const fetchStats = useCallback(async () => {
     try {
       // Fetch students
-      const studentsRes = await fetch('http://localhost:5000/api/students');
+      const studentsRes = await fetch('/api/students');
       const students = studentsRes.ok ? await studentsRes.json() : [];
 
       // Fetch transactions - API returns { transactions: [...], ... }
-      const transactionsRes = await fetch('http://localhost:5000/api/transactions?limit=1000');
+      const transactionsRes = await fetch('/api/transactions?limit=1000');
       const transactionsResult = transactionsRes.ok ? await transactionsRes.json() : { transactions: [] };
       const transactions = Array.isArray(transactionsResult) ? transactionsResult : (transactionsResult.transactions || []);
 
@@ -169,15 +169,15 @@ const Index = () => {
             ))}
           </div>
 
-          {/* Main Content Grid - with flex-1 to fill remaining space */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 flex-1 overflow-hidden">
-            <div className="overflow-hidden xl:col-span-2 min-h-0 h-full">
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4" style={{ minHeight: '400px' }}>
+            <div className="xl:col-span-2" style={{ minHeight: '350px', maxHeight: '500px' }}>
               <StudentActivityTable
                 onStudentClick={setSelectedStudent}
                 refreshTrigger={refreshTrigger}
               />
             </div>
-            <div className="overflow-hidden flex flex-col gap-4 min-h-0 h-full">
+            <div className="flex flex-col gap-4" style={{ minHeight: '350px', maxHeight: '500px' }}>
               <TransactionsList refreshTrigger={refreshTrigger} />
             </div>
           </div>

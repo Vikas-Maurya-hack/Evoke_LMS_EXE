@@ -70,7 +70,7 @@ export function TransactionsList({ refreshTrigger }: TransactionsListProps) {
   const fetchTransactions = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      const response = await fetch('http://localhost:5000/api/transactions?limit=50');
+      const response = await fetch('/api/transactions?limit=50');
       if (response.ok) {
         const data = await response.json();
         const transactions = Array.isArray(data) ? data : (data.transactions || []);

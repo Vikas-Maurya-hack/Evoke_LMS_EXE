@@ -49,8 +49,8 @@ const Notifications = () => {
         setIsRefreshing(true);
         try {
             const [emiRes, transRes] = await Promise.all([
-                fetch('http://localhost:5000/api/emi-plans'),
-                fetch('http://localhost:5000/api/transactions/recent')
+                fetch('/api/emi-plans'),
+                fetch('/api/transactions/recent')
             ]);
 
             if (emiRes.ok) {

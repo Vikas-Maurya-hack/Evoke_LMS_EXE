@@ -67,7 +67,7 @@ const Payments = () => {
         setIsRefreshing(true);
         try {
             // Fetch all transactions with a high limit to get everything
-            const response = await fetch('http://localhost:5000/api/transactions?limit=1000');
+            const response = await fetch('/api/transactions?limit=1000');
             if (response.ok) {
                 const result = await response.json();
                 // API returns { transactions: [...], currentPage, totalPages, totalTransactions }
