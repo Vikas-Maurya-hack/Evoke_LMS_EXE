@@ -1,7 +1,5 @@
 # Evoke EduGlobal LMS (Software)
 
-![Evoke EduGlobal LMS](./public/logo-icon.png)
-
 **Evoke EduGlobal LMS** is a powerful desktop application for student management, fee tracking, and academic administration. Packaged as a standalone Windows executable (.exe), it offers seamless offline/online synchronization with MongoDB Atlas.
 
 ---
