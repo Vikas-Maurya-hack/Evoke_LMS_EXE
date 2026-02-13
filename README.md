@@ -1,104 +1,75 @@
-# Evoke EduGlobal LMS (Executable Version)
+# Evoke EduGlobal LMS (Software)
 
 ![Evoke EduGlobal LMS](./public/logo-icon.png)
 
-**Evoke EduGlobal LMS** is a powerful, standalone desktop application designed for educational institutions to manage students, courses, fees, and payments efficiently. This software is packaged as a Windows Executable (.exe) for easy deployment and offline-capable server handling.
+**Evoke EduGlobal LMS** is a powerful desktop application for student management, fee tracking, and academic administration. Packaged as a standalone Windows executable (.exe), it offers seamless offline/online synchronization with MongoDB Atlas.
 
 ---
 
-## 🚀 Key Features
+## 📥 **Download & Install the Software**
 
-*   **Student Management**: Add, update, and track student profiles with detailed activity logs.
-*   **Course Management**: Create and manage courses with fee structures and durations.
-*   **Fee & Payment System**: 
-    *   Record payments (Cash, UPI, Bank Transfer).
-    *   Generate automatic receipts.
-    *   Track pending fees and EMI schedules.
-*   **Dashboard Analytics**: Real-time overview of total revenue, active students, and recent transactions.
-*   **Role-Based Access**: Secure login for Admin/Super Admin.
-*   **Offline/Online Sync**: Built with a robust local server that connects to cloud database (MongoDB Atlas).
-*   **Cross-Network Compatibility**: Optimized DNS handling to work on various client networks (fixing common `ECONNREFUSED` errors).
+To get the software running on your computer, follow these simple steps:
 
----
+### 1. Download the Installer
+Go to the **[Releases Section](https://github.com/Vikas-Maurya-hack/Evoke_LMS_EXE/releases)** of this repository and download the latest version:
+*   **File Name**: `SoftLearn_LMS_Installer_v1.0.0.zip` (Contains the setup file)
 
-## 🛠️ Technology Stack
+### 2. Install
+1.  **Unzip** the downloaded file.
+2.  Run (`Double-click`) the **`SoftLearn LMS Setup 1.0.0.exe`** file.
+3.  If prompted by Windows SmartScreen ("Windows protected your PC"), click **More Info** -> **Run Anyway**.
+4.  Follow the setup wizard to complete installation.
 
-*   **Frontend**: React, TypeScript, Vite, Tailwind CSS, Shadcn UI.
-*   **Backend**: Node.js, Express.js.
-*   **Database**: MongoDB Atlas.
-*   **Packaging**: Electron, Electron Builder (NSIS Installer).
+### 3. Launch
+*   After installation, you will see a **"SoftLearn LMS"** shortcut on your Desktop.
+*   Double-click to open the application.
+*   **Note:** Internet connection is required for the first login to sync with the cloud database.
 
 ---
 
-## 📥 Installation Guide
+## 🚀 Key Features of the Software
 
-### Method 1: Installing via Windows Installer (.exe) - Recommended
-
-If you have downloaded the `SoftLearn LMS Setup 1.0.0.exe` file:
-
-1.  **Download** the installer file.
-2.  **Double-click** `SoftLearn LMS Setup 1.0.0.exe`.
-3.  **Windows SmartScreen** might appear (since the app is self-signed). Click **"More Info"** -> **"Run Anyway"**.
-4.  Follow the setup wizard to install the software.
-5.  Once installed, launch **SoftLearn LMS** from your Desktop shortcut.
-
-> **Note:** The application attempts to connect to the MongoDB cloud database. Ensure you have an active internet connection.
-
-### Method 2: Running from Source Code (For Developers)
-
-If you want to modify or run the code directly:
-
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/Vikas-Maurya-hack/Evoke_LMS_EXE.git
-    cd Evoke_LMS_EXE
-    ```
-
-2.  **Install Dependencies**:
-    ```bash
-    npm install
-    ```
-
-3.  **Configure Environment**:
-    *   Create a `.env` file in the root directory.
-    *   Copy contents from `.env.example` and fill in your details:
-    ```env
-    MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/?appName=Cluster0
-    PORT=5050
-    ```
-
-4.  **Run in Development Mode**:
-    ```bash
-    npm run electron:dev
-    ```
-
----
-
-## 📦 Building the Executable
-
-To build the Windows installer yourself:
-
-1.  Ensure all dependencies are installed.
-2.  Run the build command:
-    ```bash
-    npm run electron:build
-    ```
-3.  The installer will be generated in the `release/` folder.
+*   **Student Management**: 
+    *   Add new students with photos and details.
+    *   View comprehensive student profiles and activity logs.
+*   **Fee & Payment System**:
+    *   Record fees (Cash, UPI, Bank Transfer).
+    *   Automatic receipt generation.
+    *   View pending dues and payment history.
+*   **Course Management**: Create structured courses with fees and durations.
+*   **Dashboard & Analytics**:
+    *   Visual representation of total revenue.
+    *   Active student counts.
+    *   Recent transaction feed.
+*   **Secure & Robust**:
+    *   Role-based access control (Admin/Super Admin).
+    *   Optimized for various network environments (works on restricted corporate/school networks).
 
 ---
 
 ## 🔧 Troubleshooting
 
-**"Application Error: Failed to start server"**
-*   Check your internet connection.
-*   Ensure port `5050` is not being used by another application.
-*   The app creates an error log on your Desktop (`SoftLearn_error.log`) if it crashes. Check this file for details.
+If you encounter issues:
 
-**"Cloud not connect to server" on Login**
-*   This usually means the backend server hasn't started yet. Wait a few seconds and try again.
+*   **"Cloud not connect to server"**: Wait a moment for the background services to start. Ensure you are connected to the internet.
+*   **Installation blocked by Antivirus**: Since this is custom enterprise software, you may need to whitelist the installer or "Allow" it in your firewall settings.
+*   **Error Logs**: If the application crashes, check your Desktop for a file named `SoftLearn_error.log` and share it with support.
 
 ---
 
-## 📄 License
+## 👨‍💻 For Developers (Source Code)
 
-This project is proprietary software developed for Evoke EduGlobal.
+This repository also contains the source code for the application.
+
+### Tech Stack
+*   **Frontend**: React, TypeScript, Vite, Tailwind CSS
+*   **Backend**: Node.js, Express, MongoDB
+*   **Packaging**: Electron, Electron Builder
+
+### Building from Source
+1.  Clone this repository.
+2.  Set up environment variables in `.env`.
+3.  Run `npm install` and `npm run electron:dev`.
+
+---
+**Developed for Evoke EduGlobal** | v1.0.0
